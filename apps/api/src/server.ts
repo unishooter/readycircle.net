@@ -16,6 +16,7 @@ import { buildPinoOptions, generateRequestId, REQUEST_ID_HEADER } from '@readyci
 import { registerErrorHandler } from './plugins/error-handler.js';
 import { registerSessionPlugin } from './plugins/session.js';
 import { AuditService } from './modules/audit/service.js';
+import { authRoutes } from './modules/auth/routes.js';
 import { healthRoutes } from './modules/health/routes.js';
 import { sessionRoutes } from './modules/session/routes.js';
 import { userRoutes } from './modules/users/routes.js';
@@ -56,7 +57,11 @@ export function buildServer({ config, db }: BuildServerOptions): FastifyInstance
 
   registerErrorHandler(app);
 
-  app.register(cookie);
+  // The `secret` enables signed cookies, used only for the short-lived
+  // OAuth state cookie (see modules/auth/oauth-state.ts) -- the long-lived
+  // `rc_session` cookie stays an opaque, unsigned token validated against
+  // the `sessions` table instead.
+  app.register(cookie, { secret: config.sessionSecret });
   app.register(cors, { origin: config.appBaseUrl, credentials: true });
   app.register(swagger, {
     openapi: {
@@ -71,6 +76,9 @@ export function buildServer({ config, db }: BuildServerOptions): FastifyInstance
 
   app.register(healthRoutes, { prefix: '/health' });
   app.register(sessionRoutes, { prefix: '/api/v1' });
+  if (config.cognito.isConfigured) {
+    app.register(authRoutes, { prefix: '/api/v1' });
+  }
   app.register(userRoutes, { prefix: '/api/v1' });
   app.register(stationRoutes, { prefix: '/api/v1' });
   app.register(circleRoutes, { prefix: '/api/v1' });
