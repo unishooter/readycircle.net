@@ -16,7 +16,7 @@ export interface TestContext {
  * Integration tests exercise the actual database rather than mocks, per
  * the project's testing requirements; run `pnpm db:migrate` first.
  */
-export async function createTestContext(): Promise<TestContext> {
+export async function createTestContext(envOverrides: Record<string, string> = {}): Promise<TestContext> {
   const config = loadConfig({
     NODE_ENV: 'test',
     APP_ENV: 'test',
@@ -25,6 +25,7 @@ export async function createTestContext(): Promise<TestContext> {
     SESSION_SECRET: 'test-session-secret-not-for-production-use',
     LOG_LEVEL: 'silent',
     DEV_AUTH_ENABLED: 'true',
+    ...envOverrides,
   });
   const { db, close } = createDatabase(config.databaseUrl);
   const app = buildServer({ config, db });

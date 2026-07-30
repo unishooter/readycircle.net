@@ -14,14 +14,15 @@ import { NotFoundError } from '../../lib/errors.js';
 export const sessionRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get('/session', { schema: { tags: ['session'], response: { 200: sessionResponseSchema } } }, async (request) => {
     const devAuthEnabled = app.config.devAuth.enabled;
+    const cognitoEnabled = app.config.cognito.isConfigured;
     if (!request.userId) {
-      return { authenticated: false, user: null, devAuthEnabled };
+      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled };
     }
     const user = await getCurrentUserById(app.db, request.userId);
     if (!user) {
-      return { authenticated: false, user: null, devAuthEnabled };
+      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled };
     }
-    return { authenticated: true, user, devAuthEnabled };
+    return { authenticated: true, user, devAuthEnabled, cognitoEnabled };
   });
 
   app.post('/logout', { schema: { tags: ['session'], response: { 200: z.object({ success: z.literal(true) }) } } }, async (request, reply) => {
@@ -57,7 +58,7 @@ export const sessionRoutes: FastifyPluginAsyncZod = async (app) => {
         });
         const user = await getCurrentUserById(app.db, userId);
         if (!user) throw new NotFoundError('Development user not found after login.');
-        return { authenticated: true, user, devAuthEnabled: true };
+        return { authenticated: true, user, devAuthEnabled: true, cognitoEnabled: app.config.cognito.isConfigured };
       },
     );
   }
