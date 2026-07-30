@@ -1,6 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { LandingPage } from './routes/landing/LandingPage.js';
-import { DevLoginPage } from './routes/auth/DevLoginPage.js';
+import { LoginPage } from './routes/auth/LoginPage.js';
 import { RouteGuard } from './routes/app/RouteGuard.js';
 import { AppShell } from './routes/app/AppShell.js';
 import { DashboardPage } from './routes/app/DashboardPage.js';
@@ -20,7 +20,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<DevLoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
 
         <Route element={<RouteGuard />}>
           <Route path="/app" element={<AppShell />}>
