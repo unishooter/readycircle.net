@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { userIdentities, users, type Database } from '@readycircle/database';
 
 export interface ProviderIdentityInput {
-  provider: 'google' | 'apple' | 'email_magic_link' | 'dev';
+  provider: 'google' | 'apple' | 'email_password' | 'dev';
   providerSubject: string;
   providerEmail?: string | null;
   emailVerified: boolean;
@@ -15,26 +15,57 @@ export interface ProviderIdentityInput {
  * identity design (user_id / provider / provider_subject / provider_email
  * / email_verified) and is shared by every real `AuthProvider`
  * implementation so identity resolution logic only exists once.
+ *
+ * Account linking: if no `(provider, providerSubject)` row matches but a
+ * *verified* email matches an existing user (e.g. someone signed up with
+ * Google, and later uses "Continue with email" using the same address, or
+ * vice versa), the new identity is linked to that existing user instead of
+ * creating a duplicate account. This relies on `users.email` having a
+ * unique index (see `packages/database/src/schema/identity.ts`) and on the
+ * caller only ever passing `emailVerified: true` for addresses a real
+ * identity provider has actually confirmed -- an unverified email must
+ * never be used to hijack an existing account.
  */
 export async function findOrCreateUserByProviderIdentity(
   db: Database,
   input: ProviderIdentityInput,
 ): Promise<{ userId: string; isNewUser: boolean }> {
-  const [existing] = await db
+  const [existingIdentity] = await db
     .select({ userId: userIdentities.userId })
     .from(userIdentities)
     .where(and(eq(userIdentities.provider, input.provider), eq(userIdentities.providerSubject, input.providerSubject)))
     .limit(1);
 
-  if (existing) {
-    return { userId: existing.userId, isNewUser: false };
+  if (existingIdentity) {
+    return { userId: existingIdentity.userId, isNewUser: false };
   }
+
+  if (input.providerEmail && input.emailVerified) {
+    const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.providerEmail)).limit(1);
+    if (existingUser) {
+      await db.insert(userIdentities).values({
+        userId: existingUser.id,
+        provider: input.provider,
+        providerSubject: input.providerSubject,
+        providerEmail: input.providerEmail,
+        emailVerified: input.emailVerified,
+      });
+      return { userId: existingUser.id, isNewUser: false };
+    }
+  }
+
+  // `users.email` is only ever populated with a *verified* address (it has
+  // a unique index and doubles as the account-linking key above), so an
+  // unverified email is recorded on the identity row only, never here --
+  // otherwise it could collide with, or later be mistaken for, someone
+  // else's already-verified address on that same string.
+  const storedEmail = input.emailVerified ? (input.providerEmail ?? null) : null;
 
   const [user] = await db
     .insert(users)
     .values({
       displayName: input.displayName,
-      email: input.providerEmail ?? null,
+      email: storedEmail,
       emailVerified: input.emailVerified,
     })
     .returning();

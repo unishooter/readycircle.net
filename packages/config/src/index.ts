@@ -114,6 +114,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     if (!env.AWS_S3_DOCUMENT_BUCKET) missing.push('AWS_S3_DOCUMENT_BUCKET');
     if (!env.AWS_SQS_PLAN_QUEUE_URL) missing.push('AWS_SQS_PLAN_QUEUE_URL');
     if (!env.AWS_SQS_DOCUMENT_QUEUE_URL) missing.push('AWS_SQS_DOCUMENT_QUEUE_URL');
+    if (!env.COGNITO_USER_POOL_ID) missing.push('COGNITO_USER_POOL_ID');
+    if (!env.COGNITO_CLIENT_ID) missing.push('COGNITO_CLIENT_ID');
+    if (!env.COGNITO_CLIENT_SECRET) missing.push('COGNITO_CLIENT_SECRET');
+    if (!env.COGNITO_DOMAIN) missing.push('COGNITO_DOMAIN');
+    if (!env.COGNITO_REDIRECT_URI) missing.push('COGNITO_REDIRECT_URI');
     if (missing.length > 0) {
       throw new ConfigError(
         `Missing required production configuration:\n${missing.map((m) => `  - ${m}`).join('\n')}`,
