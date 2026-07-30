@@ -6,6 +6,8 @@ export const sessionResponseSchema = z.object({
   authenticated: z.boolean(),
   user: currentUserSchema.nullable(),
   devAuthEnabled: z.boolean(),
+  /** Whether production sign-in (Google / email+password via Cognito) is configured in this environment. */
+  cognitoEnabled: z.boolean(),
 });
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 

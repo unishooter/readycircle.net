@@ -6,7 +6,7 @@ export const currentUserSchema = z.object({
   displayName: z.string(),
   email: z.string().email().nullable(),
   emailVerified: z.boolean(),
-  authProvider: z.enum(['dev', 'google', 'apple', 'email_magic_link']),
+  authProvider: z.enum(['dev', 'google', 'apple', 'email_password']),
   createdAt: z.string(),
 });
 export type CurrentUser = z.infer<typeof currentUserSchema>;

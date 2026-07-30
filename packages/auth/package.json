@@ -14,6 +14,7 @@
   "dependencies": {
     "@readycircle/contracts": "workspace:*",
     "@readycircle/database": "workspace:*",
+    "aws-jwt-verify": "^4.0.1",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {

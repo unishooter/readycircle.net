@@ -36,7 +36,7 @@ export const userIdentities = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    /** 'dev' | 'google' | 'apple' | 'email_magic_link' */
+    /** 'dev' | 'google' | 'apple' | 'email_password' */
     provider: text('provider').notNull(),
     providerSubject: text('provider_subject').notNull(),
     providerEmail: text('provider_email'),
