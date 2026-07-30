@@ -49,9 +49,10 @@ later if a module needs to scale independently.
 - **`packages/domain`** -- pure business rules (authorization predicates,
   visibility shaping) with no I/O, so they're trivial to unit test.
 - **`packages/database`** -- Drizzle ORM schema, migrations, and seed data.
-- **`packages/auth`** -- session management plus two interchangeable
-  `AuthProvider` implementations: a development provider (cookie-based,
-  no password) and a Cognito stub for production.
+- **`packages/auth`** -- session management plus two authentication
+  providers: a development provider (cookie-based, no password) and a real
+  Amazon Cognito adapter (Google federation + native email/password) for
+  production.
 - **`packages/aws`** -- thin wrappers around the AWS SDK v3 (S3, SQS,
   Secrets Manager) so business/worker code never imports the SDK directly.
 - **`packages/config`** -- validates `process.env` once, at startup, into a
@@ -148,22 +149,36 @@ unpredictable point.
 
 ## Development authentication vs. production authentication
 
-`packages/auth` defines an `AuthProvider` interface with two
-implementations:
+`packages/auth` has two authentication providers:
 
 - **`DevAuthProvider`** -- only registered when `DEV_AUTH_ENABLED=true` and
   `APP_ENV` is not `production` (see the guard above). Lets you sign in as
   any seeded or newly-created user with no password, for fast local
   iteration and tests.
-- **`CognitoAuthProvider`** -- a stub implementing the same interface for
-  AWS Cognito (OAuth redirect/callback, session mapping). Wiring this up to
-  real Cognito credentials is out of scope for this milestone; the
-  interface exists so the API code that depends on "an authenticated user"
-  never has to know which provider is behind it.
+- **`CognitoAuthProvider`** -- a real Amazon Cognito OAuth adapter
+  (Authorization Code + PKCE), only registered when all five `COGNITO_*`
+  variables are set (`config.cognito.isConfigured`). Cognito is configured
+  with two enabled sign-in methods: **Google** as a federated identity
+  provider, and Cognito's own native username/password store as an email
+  fallback. "Continue with Google"
+  (`GET /api/v1/auth/google`) passes `identity_provider=Google` to Cognito's
+  authorize endpoint, which skips Cognito's own picker screen and redirects
+  straight to Google's consent screen; "Continue with email"
+  (`GET /api/v1/auth/login`) shows Cognito's hosted sign-up/sign-in/
+  forgot-password UI instead. Both land on `GET /api/v1/auth/callback`,
+  which exchanges the authorization code, verifies the ID token against the
+  user pool's JWKS (`aws-jwt-verify`), and resolves it to an internal user.
+  See [`docs/deployment/cognito-google-setup.md`](docs/deployment/cognito-google-setup.md)
+  for the (manual, one-time) AWS/Google console setup this depends on.
 
-Both providers converge on the same `SessionManager`, which issues an
-HttpOnly, signed session cookie and resolves `request.userId` on every
-request via a Fastify plugin (`apps/api/src/plugins/session.ts`).
+Both providers converge on `findOrCreateUserByProviderIdentity`
+(`packages/auth/src/identity-mapping.ts`) and the same `SessionManager`,
+which issues an HttpOnly, opaque session cookie and resolves
+`request.userId` on every request via a Fastify plugin
+(`apps/api/src/plugins/session.ts`). Signing up with Google and later using
+"Continue with email" with the same address (or vice versa) links to the
+same account, based on a verified email match -- see the doc comment on
+`findOrCreateUserByProviderIdentity` for the exact rule.
 
 ## Tests
 
@@ -222,9 +237,12 @@ Operational access is via AWS Systems Manager Session Manager, not SSH.
   [`docs/deployment/local-toolchain.md`](docs/deployment/local-toolchain.md)
   for manual setup steps. Once Docker is running, `pnpm test` and
   `pnpm --filter @readycircle/api run dev` work as described above.
-- **Cognito is a stub.** `CognitoAuthProvider` implements the `AuthProvider`
-  interface but is not wired up to real AWS Cognito credentials or an OAuth
-  redirect flow.
+- **Apple sign-in and passwordless email are not implemented.** Cognito is
+  configured with Google + native email/password only; `'apple'` remains a
+  forward-compatible value in the `authProvider` contract but has no
+  working sign-in path. A magic-link/OTP email option was considered and
+  deliberately deferred in favor of Cognito's native password flow (less
+  infrastructure to build and operate for the same v1 scope).
 - **Plan and document generation are placeholders.** `apps/worker`'s job
   handlers validate their message payloads and log receipt, but do not
   generate any real content -- no AI-assisted drafting, no PDF rendering.
@@ -240,9 +258,9 @@ Operational access is via AWS Systems Manager Session Manager, not SSH.
 
 The natural next slice of work, building on this foundation:
 
-1. Wire up `CognitoAuthProvider` to real AWS Cognito (user pool, OAuth
-   redirect/callback, token verification) so production sign-in works
-   alongside development auth.
+1. Complete the AWS/Google console setup in
+   [`docs/deployment/cognito-google-setup.md`](docs/deployment/cognito-google-setup.md)
+   and do a real end-to-end sign-in test against a live Cognito user pool.
 2. Add a MapLibre-based boundary/location picker to the station and Circle
    wizards, replacing the manual lat/lng entry.
 3. Implement real plan generation: assemble a Circle's stations, member
@@ -252,3 +270,4 @@ The natural next slice of work, building on this foundation:
 4. Build the Plans, Nets, and Contacts surfaces in `apps/web` that are
    currently "coming soon" placeholders.
 5. Add equipment inventory to the station detail page.
+6. Add Apple sign-in as a second Cognito federated identity provider.

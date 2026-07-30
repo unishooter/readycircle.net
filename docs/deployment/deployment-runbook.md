@@ -21,10 +21,15 @@ meant to be applied to instances that already exist.
 - **S3** stores generated documents (plans, PDFs). **SQS** carries
   plan-generation and document-generation jobs from the API to the worker.
 - **Secrets Manager** / **SSM Parameter Store** holds `SESSION_SECRET`,
-  `DATABASE_URL`, Cognito credentials, etc. These are rendered into
-  `/etc/readycircle/api.env` and `/etc/readycircle/worker.env` by whatever
-  provisioning/config-management tooling manages the ASG launch template --
-  that step is outside this repo's scope.
+  `DATABASE_URL`, and the Cognito credentials
+  (`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`,
+  `COGNITO_DOMAIN`, `COGNITO_REDIRECT_URI` -- see
+  [cognito-google-setup.md](./cognito-google-setup.md) for how these are
+  obtained; `packages/config` refuses to start the API in production if any
+  are missing). These are rendered into `/etc/readycircle/api.env` and
+  `/etc/readycircle/worker.env` by whatever provisioning/config-management
+  tooling manages the ASG launch template -- that step is outside this
+  repo's scope.
 - **CloudWatch** collects logs (via the CloudWatch agent tailing journald
   output, since both services log structured JSON to stdout/journald) and
   metrics/alarms.
