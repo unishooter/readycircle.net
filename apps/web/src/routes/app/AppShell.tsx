@@ -49,8 +49,19 @@ export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   async function handleLogout() {
+    // A Cognito-backed session (Google or email/password) also has its own
+    // hosted SSO session in the browser -- clearing only our `rc_session`
+    // cookie would let "Continue with Google" silently sign the same
+    // account back in with no prompt. Route through Cognito's own logout
+    // endpoint in that case; for dev-auth sessions there's no such session
+    // to clear.
+    const usedCognito = session?.user?.authProvider === 'google' || session?.user?.authProvider === 'email_password';
     await logout.mutateAsync();
-    navigate('/', { replace: true });
+    if (usedCognito) {
+      window.location.href = '/api/v1/auth/logout-redirect';
+    } else {
+      navigate('/', { replace: true });
+    }
   }
 
   return (

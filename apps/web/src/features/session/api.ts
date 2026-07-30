@@ -53,6 +53,7 @@ export function useLogout() {
         authenticated: false,
         user: null,
         devAuthEnabled: previous?.devAuthEnabled ?? true,
+        cognitoEnabled: previous?.cognitoEnabled ?? false,
       }));
       queryClient.invalidateQueries();
     },
