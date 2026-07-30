@@ -1,0 +1,180 @@
+import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { Badge, Button, Card, CardTitle, Select } from '@readycircle/ui';
+import {
+  useAddMember,
+  useCircle,
+  useCircleMembers,
+  useRemoveMember,
+  useUpdateMember,
+} from '../../../features/circles/api.js';
+import { useStations } from '../../../features/stations/api.js';
+
+export function CircleDetailPage() {
+  const { circleId } = useParams<{ circleId: string }>();
+  const { data: circle, isLoading, error } = useCircle(circleId);
+  const { data: membersData, isLoading: membersLoading } = useCircleMembers(circleId);
+  const { data: stationsData } = useStations();
+  const addMember = useAddMember(circleId ?? '');
+  const updateMember = useUpdateMember(circleId ?? '');
+  const removeMember = useRemoveMember(circleId ?? '');
+  const [selectedStationId, setSelectedStationId] = useState('');
+
+  if (isLoading) return <p className="text-sm text-ink/50">Loading…</p>;
+  if (error || !circle) {
+    return (
+      <div className="max-w-lg">
+        <Card>
+          <CardTitle>Circle not found</CardTitle>
+          <p className="mt-2 text-sm text-ink/60">
+            This Circle doesn&apos;t exist, or you&apos;re not a member.
+          </p>
+          <Link to="/app/circles" className="mt-4 inline-block text-sm font-medium text-teal-700">
+            &larr; Back to My Radio Circles
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
+  const isCoordinator = circle.viewerRole === 'coordinator';
+  const members = membersData?.items ?? [];
+  const memberStationIds = new Set(members.map((m) => m.stationId));
+  const eligibleStations = (stationsData?.items ?? []).filter(
+    (s) => s.status === 'active' && !memberStationIds.has(s.id),
+  );
+
+  async function handleAddMember() {
+    if (!selectedStationId) return;
+    await addMember.mutateAsync({ stationId: selectedStationId });
+    setSelectedStationId('');
+  }
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-ink">{circle.name}</h1>
+          <Badge tone={circle.status === 'active' ? 'teal' : 'neutral'}>{circle.status}</Badge>
+        </div>
+        <p className="mt-1 text-sm text-ink/60">{circle.circleTypeLabel} &middot; {circle.area.areaLabel}</p>
+      </div>
+
+      {circle.shortDescription ? <p className="text-sm text-ink/80">{circle.shortDescription}</p> : null}
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        <Card>
+          <CardTitle>Overview</CardTitle>
+          <dl className="mt-3 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-ink/60">Members</dt>
+              <dd className="font-medium text-ink">{circle.memberCount}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink/60">Coordinators</dt>
+              <dd className="font-medium text-ink">{circle.coordinatorCount}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink/60">Your role</dt>
+              <dd className="font-medium text-ink">{circle.viewerRole ?? 'Not a member'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink/60">Privacy</dt>
+              <dd className="font-medium text-ink">{circle.isPrivate ? 'Private' : 'Not private'}</dd>
+            </div>
+          </dl>
+        </Card>
+
+        <Card>
+          <CardTitle>Next action</CardTitle>
+          <p className="mt-3 text-sm text-ink/60">
+            Generated plans, scheduled nets, and shared contacts are coming in a future milestone. For
+            now, keep your Circle&apos;s roster current.
+          </p>
+        </Card>
+      </div>
+
+      <Card>
+        <div className="flex items-center justify-between">
+          <CardTitle>Members</CardTitle>
+        </div>
+
+        {membersLoading ? (
+          <p className="mt-4 text-sm text-ink/50">Loading…</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-black/5">
+            {members.map((member) => (
+              <li key={member.id} className="flex items-center justify-between py-3">
+                <div>
+                  <p className="text-sm font-medium text-ink">{member.stationName}</p>
+                  <p className="text-xs text-ink/50">Joined {new Date(member.joinedAt).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {isCoordinator ? (
+                    <select
+                      className="rounded-md border border-black/10 px-2 py-1 text-xs"
+                      value={member.role}
+                      onChange={(event) =>
+                        void updateMember.mutateAsync({
+                          membershipId: member.id,
+                          input: { role: event.target.value as 'coordinator' | 'member' },
+                        })
+                      }
+                    >
+                      <option value="member">Member</option>
+                      <option value="coordinator">Coordinator</option>
+                    </select>
+                  ) : (
+                    <Badge tone={member.role === 'coordinator' ? 'teal' : 'neutral'}>{member.role}</Badge>
+                  )}
+                  {isCoordinator ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void removeMember.mutateAsync(member.id)}
+                      disabled={removeMember.isPending}
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {removeMember.isError ? (
+          <p role="alert" className="mt-2 text-xs text-red-700">
+            {(removeMember.error as Error).message}
+          </p>
+        ) : null}
+        {updateMember.isError ? (
+          <p role="alert" className="mt-2 text-xs text-red-700">
+            {(updateMember.error as Error).message}
+          </p>
+        ) : null}
+
+        {eligibleStations.length > 0 ? (
+          <div className="mt-6 flex flex-wrap items-end gap-3 border-t border-black/5 pt-4">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-ink/60" htmlFor="add-station">
+                Add one of your stations
+              </label>
+              <Select id="add-station" value={selectedStationId} onChange={(e) => setSelectedStationId(e.target.value)}>
+                <option value="">Choose a station…</option>
+                {eligibleStations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <Button onClick={() => void handleAddMember()} disabled={!selectedStationId || addMember.isPending}>
+              Add
+            </Button>
+          </div>
+        ) : null}
+      </Card>
+    </div>
+  );
+}

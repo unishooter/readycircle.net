@@ -1,0 +1,41 @@
+# ReadyCircle.net background worker - systemd unit
+#
+# Install as /etc/systemd/system/readycircle-worker.service, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now readycircle-worker
+#
+# Shares the same release directory and environment file conventions as
+# readycircle-api.service; see that unit for details.
+
+[Unit]
+Description=ReadyCircle Worker
+Documentation=https://readycircle.net
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=readycircle
+Group=readycircle
+WorkingDirectory=/opt/readycircle/current/apps/worker
+EnvironmentFile=/etc/readycircle/worker.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/readycircle
+UMask=0077
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=readycircle-worker
+
+[Install]
+WantedBy=multi-user.target

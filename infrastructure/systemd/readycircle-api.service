@@ -1,0 +1,49 @@
+# ReadyCircle.net API - systemd unit
+#
+# Install as /etc/systemd/system/readycircle-api.service, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now readycircle-api
+#
+# Expects deploy.sh to have created /opt/readycircle/current as a symlink
+# to the active release, and /etc/readycircle/api.env to hold the
+# process's environment variables (see .env.example for the full list).
+# That env file should be root-owned and mode 0600, and is typically
+# populated from AWS Secrets Manager / SSM Parameter Store during deploy
+# rather than committed anywhere.
+
+[Unit]
+Description=ReadyCircle API
+Documentation=https://readycircle.net
+After=network-online.target
+Wants=network-online.target
+# The API needs the database reachable; this only orders startup relative
+# to the network, not an actual RDS readiness check (that happens via the
+# migration step in deploy.sh and this unit's own restart policy).
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=readycircle
+Group=readycircle
+WorkingDirectory=/opt/readycircle/current/apps/api
+EnvironmentFile=/etc/readycircle/api.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+
+# Hardening: the service does not need broad filesystem or privilege access.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/readycircle
+UMask=0077
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=readycircle-api
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: readycircle-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: readycircle
+      POSTGRES_PASSWORD: readycircle_dev_password
+      POSTGRES_DB: readycircle
+    ports:
+      - "5432:5432"
+    volumes:
+      - readycircle-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U readycircle -d readycircle"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  readycircle-postgres-data:

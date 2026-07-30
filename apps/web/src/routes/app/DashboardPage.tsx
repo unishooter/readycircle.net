@@ -1,0 +1,141 @@
+import { Link } from 'react-router-dom';
+import { Badge, Card, CardDescription, CardTitle, EmptyState } from '@readycircle/ui';
+import { useStations } from '../../features/stations/api.js';
+import { useCircles } from '../../features/circles/api.js';
+
+export function DashboardPage() {
+  const { data: stationsData, isLoading: stationsLoading } = useStations();
+  const { data: circlesData, isLoading: circlesLoading } = useCircles();
+
+  const stations = stationsData?.items ?? [];
+  const circles = circlesData?.items ?? [];
+
+  const nextAction = stations.length === 0
+    ? { label: 'Add your first station', to: '/app/stations/new' }
+    : circles.length === 0
+      ? { label: 'Create or join a Radio Circle', to: '/app/circles/new' }
+      : { label: 'Review your Circle plan (coming soon)', to: '/app/plans' };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+        <p className="mt-1 text-sm text-ink/60">Your stations, Radio Circles, and next steps, all in one place.</p>
+      </div>
+
+      <Card className="border-teal-200 bg-teal-50/60">
+        <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Suggested next step</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-base font-medium text-ink">{nextAction.label}</p>
+          <Link
+            to={nextAction.to}
+            className="inline-flex items-center justify-center rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+          >
+            Go &rarr;
+          </Link>
+        </div>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <div className="flex items-center justify-between">
+            <CardTitle>My Stations</CardTitle>
+            <Link to="/app/stations" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+              View all
+            </Link>
+          </div>
+          {stationsLoading ? (
+            <p className="mt-4 text-sm text-ink/50">Loading…</p>
+          ) : stations.length === 0 ? (
+            <div className="mt-4">
+              <EmptyState
+                title="No stations yet"
+                description="Add your radio setup to start building a Radio Circle."
+                action={
+                  <Link to="/app/stations/new" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+                    Add a station &rarr;
+                  </Link>
+                }
+              />
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {stations.slice(0, 4).map((station) => (
+                <li key={station.id}>
+                  <Link
+                    to={`/app/stations/${station.id}`}
+                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-teal-300 hover:bg-teal-50"
+                  >
+                    <span className="text-sm font-medium text-ink">{station.name}</span>
+                    <Badge tone={station.status === 'active' ? 'teal' : 'neutral'}>{station.status}</Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <CardTitle>My Radio Circles</CardTitle>
+            <Link to="/app/circles" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+              View all
+            </Link>
+          </div>
+          {circlesLoading ? (
+            <p className="mt-4 text-sm text-ink/50">Loading…</p>
+          ) : circles.length === 0 ? (
+            <div className="mt-4">
+              <EmptyState
+                title="No Radio Circles yet"
+                description={
+                  stations.length === 0
+                    ? 'Add a station first, then create or join a Circle.'
+                    : 'Create a Circle to connect your station with others.'
+                }
+                action={
+                  stations.length > 0 ? (
+                    <Link to="/app/circles/new" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+                      Create a Circle &rarr;
+                    </Link>
+                  ) : undefined
+                }
+              />
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {circles.slice(0, 4).map((circle) => (
+                <li key={circle.id}>
+                  <Link
+                    to={`/app/circles/${circle.id}`}
+                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-teal-300 hover:bg-teal-50"
+                  >
+                    <span className="text-sm font-medium text-ink">{circle.name}</span>
+                    <Badge tone="neutral">{circle.memberCount} member{circle.memberCount === 1 ? '' : 's'}</Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <CardTitle>Plan status</CardTitle>
+          <CardDescription>Generated plans are coming in a future milestone.</CardDescription>
+        </Card>
+
+        <Card>
+          <CardTitle>Upcoming practice</CardTitle>
+          <CardDescription>Scheduled check-ins and practice nets are coming in a future milestone.</CardDescription>
+        </Card>
+      </div>
+
+      <Card>
+        <CardTitle>Recent activity</CardTitle>
+        <CardDescription>
+          A feed of station and Circle changes will appear here as your Circles grow.
+        </CardDescription>
+      </Card>
+    </div>
+  );
+}
