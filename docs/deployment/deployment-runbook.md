@@ -60,6 +60,24 @@ session -- there's no `ssh` step to add.
    sudo chmod 700 /etc/readycircle
    ```
 2. Install Node.js 20.x and `pnpm` (via corepack) on the instance/AMI.
+   This repo doesn't assume a specific base image; use whichever matches
+   yours:
+   ```bash
+   # Ubuntu / Debian
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+
+   # Amazon Linux 2023
+   curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+   sudo dnf install -y nodejs
+   ```
+   Then, on either:
+   ```bash
+   sudo corepack enable
+   sudo corepack prepare pnpm@9.15.4 --activate
+   ```
+   (pinned to match `package.json#packageManager`). Verify with `node -v`
+   and `pnpm -v`.
 3. Populate `/etc/readycircle/api.env` and `/etc/readycircle/worker.env`
    (root-owned, mode `0600`) with the environment variables from
    `.env.example`, sourced from Secrets Manager / SSM Parameter Store.
@@ -88,7 +106,15 @@ session -- there's no `ssh` step to add.
    `pnpm-workspace.yaml`.
 2. Upload the tarball to the instance (e.g. via S3 + `aws s3 cp` from within
    the SSM session, since there's no direct file transfer over Session
-   Manager).
+   Manager):
+   ```bash
+   # From CI / your local machine
+   aws s3 cp readycircle-<version>.tar.gz s3://<your-deploy-bucket>/releases/readycircle-<version>.tar.gz
+
+   # From within the SSM session, on the target instance
+   aws s3 cp s3://<your-deploy-bucket>/releases/readycircle-<version>.tar.gz /tmp/readycircle-<version>.tar.gz
+   ```
+   Requires the instance's IAM role to have `s3:GetObject` on that bucket.
 3. Run the deploy script as root:
    ```bash
    sudo infrastructure/deployment/deploy.sh <version> /path/to/readycircle-<version>.tar.gz
