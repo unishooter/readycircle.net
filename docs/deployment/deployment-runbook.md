@@ -89,9 +89,8 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
    sudo chown -R readycircle:readycircle /opt/readycircle /var/log/readycircle
    sudo chmod 700 /etc/readycircle
    ```
-2. Install Node.js 20.x and `pnpm` (via corepack) on the instance/AMI.
-   This repo doesn't assume a specific base image; use whichever matches
-   yours:
+2. Install Node.js 20.x and `pnpm` on the instance/AMI. This repo doesn't
+   assume a specific base image; use whichever matches yours:
    ```bash
    # Ubuntu / Debian
    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -101,13 +100,31 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
    sudo dnf install -y nodejs
    ```
-   Then, on either:
+   Then, on either, install pnpm as a true global package via npm --
+   **not** `corepack prepare`, which pins the version into whichever
+   user's corepack cache runs the `prepare` command (typically root's,
+   via `sudo`), but is invisible to any other user (e.g. `ssm-user`) who
+   later runs `pnpm` -- that user's corepack then silently fetches
+   "latest" instead of the pinned version, which can be incompatible with
+   the installed Node version entirely (confirmed live: corepack grabbed
+   pnpm 11 under `ssm-user`, which requires Node 22+, on a Node 20 host):
    ```bash
-   sudo corepack enable
-   sudo corepack prepare pnpm@9.15.4 --activate
+   sudo npm install -g pnpm@9.15.4
    ```
    (pinned to match `package.json#packageManager`). Verify with `node -v`
-   and `pnpm -v`.
+   and `pnpm -v` as the **same user** that will actually run `pnpm
+   install`/`pnpm build` later, not just as root.
+
+   If building on the instance itself (rather than in CI) on a small
+   instance type, add swap first -- a monorepo `pnpm install` + build can
+   exceed available memory on e.g. a `t3.small`, and there's no swap by
+   default:
+   ```bash
+   sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+   sudo chmod 600 /swapfile
+   sudo mkswap /swapfile
+   sudo swapon /swapfile
+   ```
 3. Populate `/etc/readycircle/api.env` and `/etc/readycircle/worker.env`
    (root-owned, mode `0600`) with the environment variables from
    `.env.example`, sourced from Secrets Manager / SSM Parameter Store.
