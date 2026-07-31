@@ -32,19 +32,8 @@ Either way, env files (`api.env`/`worker.env`) should be rendered from
 Secrets Manager at boot rather than expected to already exist on the
 AMI -- which ties into item 2.
 
-### 2. Resume the ASG's suspended processes (if not already done)
-`HealthCheck` and `ReplaceUnhealthy` were suspended on the ASG partway
-through this deployment to stop the replacement cycle from wiping
-manual setup work again. **Confirm these are resumed** now that the
-app is actually running and passing health checks for real:
-```bash
-aws autoscaling resume-processes --auto-scaling-group-name <your-asg-name> --scaling-processes HealthCheck ReplaceUnhealthy
-```
-Leaving these suspended indefinitely means the ASG will never replace a
-genuinely unhealthy instance on its own.
-
-### 3. Env vars are hand-typed flat files, not Secrets Manager
-Deliberately deferred to get today's deployment unblocked (see the
+### 2. Env vars are hand-typed flat files, not Secrets Manager
+Deliberately deferred to get the first deployment unblocked (see the
 "got .env for now, move to secrets mgr later" decision). `SESSION_SECRET`,
 `DATABASE_URL`, and the `COGNITO_*` values currently live in
 `/etc/readycircle/api.env` / `worker.env` as plaintext, populated by hand.
@@ -61,7 +50,7 @@ calls into app startup itself).
 
 ## Medium priority
 
-### 4. AWS_S3_DOCUMENT_BUCKET / AWS_SQS_*_QUEUE_URL are still placeholder text
+### 3. AWS_S3_DOCUMENT_BUCKET / AWS_SQS_*_QUEUE_URL are still placeholder text
 `/etc/readycircle/api.env` and `worker.env` have literal `<your bucket>`
 / `<your queue url>` text on these lines -- never replaced with real
 resource identifiers. This doesn't block the API or worker from
@@ -72,7 +61,7 @@ errors into its logs. Not urgent since `apps/worker`'s job handlers are
 currently no-op placeholders anyway (see README's "Known limitations"),
 but should be resolved before real plan/document generation is built.
 
-### 5. No CI pipeline -- deploys are entirely manual right now
+### 4. No CI pipeline -- deploys are entirely manual right now
 The deployment runbook assumes "CI builds the monorepo... and packages
 a tarball", but there's no GitHub Actions workflow (or any CI) in this
 repo. This first deployment was built and deployed by hand, directly
@@ -87,18 +76,18 @@ exactly as documented in
 and upload it to S3 -- restoring the intended tarball + `deploy.sh`
 flow instead of manual in-place builds.
 
-### 6. `deploy.sh` doesn't support the "build in place" flow actually used
-Since there was no working tarball-transfer path today, the release was
-built and deployed by manually replicating what `deploy.sh` does
-(migrate, symlink swap, restart, reload Nginx) rather than running the
-script itself. Once CI exists (item 5), this stops being necessary --
-but if manual/emergency in-place deploys stay a realistic scenario,
-`deploy.sh` could be extended to accept a directory path as an
-alternative to a tarball.
+### 5. `deploy.sh` doesn't support the "build in place" flow actually used
+Since there was no working tarball-transfer path for the first
+deployment, the release was built and deployed by manually replicating
+what `deploy.sh` does (migrate, symlink swap, restart, reload Nginx)
+rather than running the script itself. Once CI exists (item 4), this
+stops being necessary -- but if manual/emergency in-place deploys stay
+a realistic scenario, `deploy.sh` could be extended to accept a
+directory path as an alternative to a tarball.
 
 ## Low priority / cosmetic
 
-### 7. Google's OAuth consent screen shows the raw Cognito domain
+### 6. Google's OAuth consent screen shows the raw Cognito domain
 `https://readycircle.net/login` → "Continue with Google" currently
 shows `us-east-1ksmbd4heg.auth.us-east-1.amazoncognito.com` on Google's
 consent screen instead of a branded name, because that's the Google
@@ -117,7 +106,7 @@ AWS-provided Cognito domain, not a custom one).
    the Google OAuth client's redirect URI and `COGNITO_DOMAIN` to
    match.
 
-### 8. Confirm Google OAuth app's publishing status
+### 7. Confirm Google OAuth app's publishing status
 Worth double-checking in Google Cloud Console → OAuth consent screen:
 if the app is still in **Testing** mode (not verified/published), only
 pre-approved test-user Google accounts can actually complete
@@ -127,7 +116,7 @@ process, with its own requirements once you request scopes beyond the
 basic ones already used here) is needed before this is usable by the
 general public.
 
-### 9. Apple sign-in / passwordless email
+### 8. Apple sign-in / passwordless email
 Already tracked in [ADR 0008](../decisions/0008-cognito-google-oauth.md)
 and the README's "Next milestone" section -- not repeated here in
 detail, just cross-referenced so this file is a complete index of
