@@ -52,6 +52,33 @@ session -- there's no `ssh` step to add.
 
 ## One-time host setup (per instance, or baked into the AMI/launch template)
 
+Steps 4 and 5 below reference files under `infrastructure/` (systemd units,
+the Nginx site config). These are deliberately **not** part of the release
+tarball described later in this doc -- that tarball only carries the
+built app (`apps/*/dist`), since host/service configuration is meant to be
+a rare, one-time change, not something that gets re-copied on every
+deploy. That means `infrastructure/` has to land on the instance
+separately, once, before running steps 4-5. Two ways to do that:
+
+```bash
+# Option A: clone the repo directly onto the instance (needs git and,
+# if this is a private repo, credentials configured on the instance)
+git clone https://github.com/<org>/readycircle.net.git /tmp/readycircle-repo
+cd /tmp/readycircle-repo
+
+# Option B: upload just the infrastructure/ folder via S3, from your
+# local machine, then pull it down inside the SSM session -- avoids
+# needing git credentials on the instance at all
+#   (local)    tar -czf infrastructure.tar.gz infrastructure/
+#              aws s3 cp infrastructure.tar.gz s3://<your-deploy-bucket>/infrastructure.tar.gz
+#   (instance) aws s3 cp s3://<your-deploy-bucket>/infrastructure.tar.gz /tmp/infrastructure.tar.gz
+#              mkdir -p /tmp/readycircle-repo && tar -xzf /tmp/infrastructure.tar.gz -C /tmp/readycircle-repo
+#              cd /tmp/readycircle-repo
+```
+
+Run steps 4 and 5's `cp` commands from whichever directory you used above
+(they use paths relative to the repo root).
+
 1. Create the service user and directories:
    ```bash
    sudo useradd --system --no-create-home --shell /usr/sbin/nologin readycircle
