@@ -8,5 +8,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   noExternal: [/^@readycircle\//],
+  // See apps/api/tsup.config.ts for why pino must stay external.
+  external: ['pino'],
   dts: false,
 });
