@@ -62,8 +62,11 @@ separately, once, before running steps 4-5. Two ways to do that:
 
 ```bash
 # Option A: clone the repo directly onto the instance (needs git and,
-# if this is a private repo, credentials configured on the instance)
-git clone https://github.com/<org>/readycircle.net.git /tmp/readycircle-repo
+# if this is a private repo, credentials configured on the instance).
+# `git` is often not preinstalled -- if `git clone` isn't found:
+#   Ubuntu/Debian: sudo apt-get install -y git
+#   Amazon Linux 2023: sudo dnf install -y git
+git clone https://github.com/unishooter/readycircle.net.git /tmp/readycircle-repo
 cd /tmp/readycircle-repo
 
 # Option B: upload just the infrastructure/ folder via S3, from your
@@ -108,6 +111,25 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
 3. Populate `/etc/readycircle/api.env` and `/etc/readycircle/worker.env`
    (root-owned, mode `0600`) with the environment variables from
    `.env.example`, sourced from Secrets Manager / SSM Parameter Store.
+   **Both files should contain the same values.** `apps/worker` calls the
+   same shared `loadConfig()` as `apps/api`, so the same
+   production-required checklist (`SESSION_SECRET`, the three
+   `AWS_S3_*`/`AWS_SQS_*` variables, and all five `COGNITO_*` variables)
+   applies to both -- the worker refuses to start without them even
+   though it doesn't functionally use most of them (no sessions, no
+   sign-in). `NODE_ENV`/`APP_ENV` must both be `production`;
+   `APP_BASE_URL` and `API_PORT` are unused by the worker but harmless to
+   include for consistency. Without a `sudoedit`/editor session handy,
+   write a file non-interactively with:
+   ```bash
+   sudo tee /etc/readycircle/api.env > /dev/null << 'EOF'
+   NODE_ENV=production
+   APP_ENV=production
+   ...
+   EOF
+   sudo chmod 600 /etc/readycircle/api.env /etc/readycircle/worker.env
+   sudo chown root:root /etc/readycircle/api.env /etc/readycircle/worker.env
+   ```
 4. Install the systemd units:
    ```bash
    sudo cp infrastructure/systemd/readycircle-api.service /etc/systemd/system/
@@ -115,12 +137,35 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
    sudo systemctl daemon-reload
    sudo systemctl enable readycircle-api readycircle-worker
    ```
-5. Install the Nginx site:
+5. Install Nginx if it isn't already present, then install the site
+   config. Both the package name/install step and the site-config
+   location depend on your AMI's distro convention:
    ```bash
+   # Ubuntu / Debian (skip if `nginx -v` already works)
+   sudo apt-get install -y nginx
+
+   # Amazon Linux 2023 (skip if `nginx -v` already works)
+   sudo dnf install -y nginx
+   sudo systemctl enable nginx
+   ```
+   ```bash
+   # Ubuntu / Debian: uses the sites-available/sites-enabled convention
    sudo cp infrastructure/nginx/readycircle.conf /etc/nginx/sites-available/readycircle.conf
    sudo ln -s /etc/nginx/sites-available/readycircle.conf /etc/nginx/sites-enabled/readycircle.conf
+
+   # Amazon Linux 2023: no sites-available/sites-enabled -- conf.d is
+   # already included by the stock nginx.conf, no symlink step needed
+   sudo cp infrastructure/nginx/readycircle.conf /etc/nginx/conf.d/readycircle.conf
+   ```
+   Then, on either:
+   ```bash
    sudo nginx -t && sudo systemctl reload nginx
    ```
+   A `conflicting server name "_" on 0.0.0.0:80, ignored` warning from
+   `nginx -t` is expected on some AMIs' stock config (a pre-existing
+   default catch-all server block, unrelated to this site config) and is
+   safe to ignore -- `server_name readycircle.net www.readycircle.net;`
+   is more specific and takes precedence for matching requests regardless.
 6. Point the ALB target group's health check at `/nginx-health` (fast, does
    not depend on the API or database) or `/health/ready` (also verifies the
    database, at the cost of the ALB health check depending on RDS).
