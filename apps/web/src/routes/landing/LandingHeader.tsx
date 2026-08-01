@@ -4,9 +4,9 @@ import logoHorizontal from '../../assets/readycircle-logo-horizontal.png';
 export function LandingHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-black/5 bg-paper/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <a href="#top" className="flex items-center">
-          <img src={logoHorizontal} alt="ReadyCircle.net" className="h-11 w-auto sm:h-12" />
+          <img src={logoHorizontal} alt="ReadyCircle.net" className="h-14 w-auto sm:h-16" />
         </a>
         <nav className="hidden items-center gap-6 text-sm font-medium text-ink/70 md:flex" aria-label="Primary">
           <a href="#how-it-works" className="hover:text-ink">How it works</a>

@@ -70,7 +70,7 @@ export function AppShell() {
       <div className="flex min-h-screen">
         <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-black/5 bg-white py-6 md:flex">
           <a href="/" className="mb-6 flex items-center px-4">
-            <img src={logoHorizontal} alt="ReadyCircle.net" className="h-10 w-auto" />
+            <img src={logoHorizontal} alt="ReadyCircle.net" className="h-[52px] w-auto" />
           </a>
           <NavList />
         </aside>
