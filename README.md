@@ -216,9 +216,12 @@ for the full runbook. Summary: this repo assumes an existing AWS setup --
 Route 53, an Application Load Balancer, an EC2 Auto Scaling Group running
 Nginx + systemd, RDS PostgreSQL, S3, SQS, Secrets Manager, and CloudWatch.
 `infrastructure/` contains the Nginx site config, systemd unit files, and a
-`deploy.sh` release script (extract → install prod deps → migrate → swap
-symlink → restart services → reload Nginx → poll `/health/ready`).
-Operational access is via AWS Systems Manager Session Manager, not SSH.
+`deploy.sh` release script that builds in place from a git checkout on the
+instance (there's no CI yet): `git pull` + `pnpm build` → copy into a new
+release directory → migrate → swap symlink → restart services → reload
+Nginx → poll `/health/ready` → sanity-check that Nginx is serving the
+bundle that was just built. Operational access is via AWS Systems Manager
+Session Manager, not SSH.
 
 ## Health endpoints
 

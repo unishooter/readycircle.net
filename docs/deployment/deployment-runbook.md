@@ -189,84 +189,56 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
 
 ## Deploying a new release
 
-1. CI builds the monorepo (`pnpm build`) and packages a tarball containing
-   `apps/*/dist`, every `package.json` in the workspace (so `pnpm install
-   --prod` can resolve real npm dependencies), `pnpm-lock.yaml`, and
-   `pnpm-workspace.yaml`.
-2. Upload the tarball to the instance (e.g. via S3 + `aws s3 cp` from within
-   the SSM session, since there's no direct file transfer over Session
-   Manager):
-   ```bash
-   # From CI / your local machine
-   aws s3 cp readycircle-<version>.tar.gz s3://<your-deploy-bucket>/releases/readycircle-<version>.tar.gz
-
-   # From within the SSM session, on the target instance
-   aws s3 cp s3://<your-deploy-bucket>/releases/readycircle-<version>.tar.gz /tmp/readycircle-<version>.tar.gz
-   ```
-   Requires the instance's IAM role to have `s3:GetObject` on that bucket.
-3. Run the deploy script as root:
-   ```bash
-   sudo infrastructure/deployment/deploy.sh <version> /path/to/readycircle-<version>.tar.gz
-   ```
-   This extracts the release to `/opt/readycircle/releases/<version>`,
-   installs production dependencies, **runs database migrations as an
-   explicit step before touching the running services**, swaps the
-   `/opt/readycircle/current` symlink, restarts both systemd units, reloads
-   Nginx, and polls `GET /health/ready` until it returns `200` (failing
-   loudly, with a non-zero exit code, if it doesn't within 60 seconds).
-4. Repeat per-instance across the ASG (or drive this from your existing
-   deployment/orchestration tooling -- this script is intentionally a single
-   idempotent unit of work for one instance, not a fleet-wide orchestrator).
-
-### Manual in-place deploy (until CI exists)
-
 There's no CI pipeline yet (see
 [production-followups.md](./production-followups.md#4-no-ci-pipeline----deploys-are-entirely-manual-right-now)),
-so in practice releases are built directly on the instance from a git
-checkout instead of via the tarball flow above. Run this in the SSM
-session, from wherever the repo was cloned (e.g. `/tmp/readycircle-repo` --
-see "One-time host setup" above):
+so releases are built directly on the instance from a git checkout rather
+than from a CI-produced tarball. `infrastructure/deployment/deploy.sh`
+automates this end to end -- it's the standard way to deploy, not just a
+helper script for some other manual process.
 
-```bash
-# 1. Pull latest and build
-cd /tmp/readycircle-repo
-git pull
-pnpm install
-pnpm build
+1. Start (or reuse) an SSM session on the instance, and make sure
+   `/tmp/readycircle-repo` (or wherever you cloned it -- see "One-time host
+   setup" above) exists and is a git working tree with the `origin` remote
+   already configured. `deploy.sh` itself does the `git pull`, so you don't
+   need to pull by hand first.
+2. Run the deploy script as root, from inside that checkout (it needs to
+   read itself from `infrastructure/deployment/deploy.sh` relative to the
+   repo root):
+   ```bash
+   cd /tmp/readycircle-repo
+   sudo infrastructure/deployment/deploy.sh
+   ```
+   Or, from anywhere, pass the checkout path explicitly:
+   ```bash
+   sudo /tmp/readycircle-repo/infrastructure/deployment/deploy.sh /tmp/readycircle-repo
+   ```
+3. What it does, in order: `git pull` + `pnpm install` + `pnpm build`
+   inside the checkout (running as whichever user already owns that
+   directory, not root, so root doesn't leave root-owned files behind in a
+   checkout someone else needs to keep using) &rarr; copies the freshly
+   built tree into a new `/opt/readycircle/releases/manual-<UTC
+   timestamp>` directory &rarr; **runs database migrations as an explicit
+   step before touching anything currently running** &rarr; swaps the
+   `/opt/readycircle/current` symlink &rarr; restarts both systemd units
+   &rarr; reloads Nginx &rarr; polls `GET /health/ready` until it returns
+   `200` &rarr; double-checks that Nginx is actually serving the JS bundle
+   this exact run just built (not some stale previous one -- see "Why the
+   sanity check" in the script's header comment for why that check exists)
+   &rarr; prunes old release directories, keeping the 5 most recent.
+   Fails loudly with a non-zero exit code at any step, in which case the
+   previous release is untouched and still running (see "Rollback" below).
+4. If there's ever more than one instance in the ASG at once, repeat this
+   per instance (or drive it from orchestration tooling) -- this script is
+   intentionally a single idempotent unit of work for one instance, not a
+   fleet-wide orchestrator.
 
-# 2. Cut a new release directory and swap the symlink
-VERSION="manual-$(date +%Y.%m.%d-%H%M%S)"
-RELEASE_DIR="/opt/readycircle/releases/$VERSION"
-if [[ -e "$RELEASE_DIR" ]]; then
-  echo "ERROR: $RELEASE_DIR already exists -- refusing to continue" >&2
-  exit 1
-fi
-sudo cp -r /tmp/readycircle-repo "$RELEASE_DIR"
-sudo chown -R readycircle:readycircle "$RELEASE_DIR"
-sudo ln -sfn "$RELEASE_DIR" /opt/readycircle/current
-
-# 3. Migrate (only if packages/database/src/migrations changed), restart, verify
-sudo systemctl restart readycircle-api readycircle-worker
-sudo systemctl status readycircle-api readycircle-worker --no-pager
-curl -s http://localhost/health/ready
-grep -o 'assets/index-[^"]*\.js' /opt/readycircle/current/apps/web/dist/index.html
-curl -s http://localhost/ | grep -o 'assets/index-[^"]*\.js'
-```
-
-**Why the timestamp, and why the explicit existence check**: this bit
-someone in practice -- `VERSION` used only a `YYYY.MM.DD-N` counter, and a
-second same-day deploy reused a `$RELEASE_DIR` that already existed from
-an earlier run. `cp -r SRC DEST` silently **nests** `SRC` inside `DEST`
-when `DEST` already exists (rather than overwriting its contents), so the
-freshly built `apps/web/dist` landed one level too deep at
-`$RELEASE_DIR/readycircle-repo/apps/web/dist` while Nginx kept serving the
-stale top-level `dist` from the earlier run -- no error at any step, just
-a deploy that silently didn't take effect. A per-second timestamp makes
-same-day collisions effectively impossible, and the explicit check turns
-any remaining collision into a loud failure instead of a silent nested
-copy. The last two `grep`/`curl` lines above exist specifically to catch
-this class of bug going forward: they should always print the same
-asset hash as each other and match what `pnpm build` just reported.
+Once CI exists, the natural evolution is CI running `pnpm build`, packaging
+a tarball, and pushing it to S3 -- with `deploy.sh` (or a sibling script)
+pulling that tarball down instead of building in place. That's future
+work, tracked in
+[production-followups.md](./production-followups.md#4-no-ci-pipeline----deploys-are-entirely-manual-right-now);
+this doc intentionally only documents the build-in-place flow that's
+actually in use today.
 
 ## Rollback
 

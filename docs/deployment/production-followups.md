@@ -61,48 +61,26 @@ errors into its logs. Not urgent since `apps/worker`'s job handlers are
 currently no-op placeholders anyway (see README's "Known limitations"),
 but should be resolved before real plan/document generation is built.
 
-### 4. No CI pipeline -- deploys are entirely manual right now
-The deployment runbook assumes "CI builds the monorepo... and packages
-a tarball", but there's no GitHub Actions workflow (or any CI) in this
-repo. This first deployment was built and deployed by hand, directly
-on the instance (`git clone` + `pnpm build` in place), because there
-was no way to get a built tarball from a build environment into S3
-without AWS credentials being available there.
+### 4. No CI pipeline -- deploying still requires a human in an SSM session
+`infrastructure/deployment/deploy.sh` now automates the full build-in-place
+flow end to end (`git pull`, `pnpm install`/`build`, release cutover,
+migrate, restart, reload, health check, and a sanity check that Nginx is
+actually serving the bundle that was just built -- see the script's header
+comment for why that last check exists). What's still missing is anything
+that *triggers* it automatically: someone has to start an SSM session and
+run `sudo infrastructure/deployment/deploy.sh` by hand for every deploy.
 
-**Fix**: set up actual CI (GitHub Actions is the natural choice given
-the repo's already on GitHub) to run `pnpm build`, package the tarball
-exactly as documented in
-[deployment-runbook.md](./deployment-runbook.md#deploying-a-new-release),
-and upload it to S3 -- restoring the intended tarball + `deploy.sh`
-flow instead of manual in-place builds.
-
-### 5. `deploy.sh` doesn't support the "build in place" flow actually used
-Since there was no working tarball-transfer path for the first
-deployment, the release was built and deployed by manually replicating
-what `deploy.sh` does (migrate, symlink swap, restart, reload Nginx)
-rather than running the script itself. Once CI exists (item 4), this
-stops being necessary -- but if manual/emergency in-place deploys stay
-a realistic scenario, `deploy.sh` could be extended to accept a
-directory path as an alternative to a tarball.
-
-This already caused a real, silent-failure outage: an early version of
-the manual command block used a `manual-YYYY.MM.DD-N` version tag with no
-existence check, a same-day second deploy reused a release directory that
-already existed from an earlier run, and `cp -r SRC DEST` nested `SRC`
-inside the existing `DEST` instead of overwriting it -- the fresh build
-landed one level too deep and Nginx kept serving the stale previous
-release, with no error anywhere in the deploy output. Fixed in the
-runbook's ["Manual in-place
-deploy"](./deployment-runbook.md#manual-in-place-deploy-until-ci-exists)
-section (per-second timestamp + explicit existence check that fails
-loudly), but `deploy.sh` itself has this exact protection already
-(`if [[ -d "$RELEASE_DIR" ]]; then fail ...`) and the manual flow doesn't
--- another reason to fold manual in-place deploys into the script (see
-above) rather than keep them as separate copy-pasted commands.
+**Fix**: set up actual CI (GitHub Actions is the natural choice given the
+repo's already on GitHub). The likely end state is CI running `pnpm build`,
+packaging a tarball, and pushing it to S3, with a tarball-consuming
+variant of `deploy.sh` (or a sibling script) replacing today's build-in-
+place approach -- but even a much smaller first step, like a GitHub Actions
+workflow that just SSMs in and runs today's `deploy.sh` on `push` to
+`master`, would remove the remaining manual step.
 
 ## Low priority / cosmetic
 
-### 6. Google's OAuth consent screen shows the raw Cognito domain
+### 5. Google's OAuth consent screen shows the raw Cognito domain
 `https://readycircle.net/login` → "Continue with Google" currently
 shows `us-east-1ksmbd4heg.auth.us-east-1.amazoncognito.com` on Google's
 consent screen instead of a branded name, because that's the Google
@@ -121,7 +99,7 @@ AWS-provided Cognito domain, not a custom one).
    the Google OAuth client's redirect URI and `COGNITO_DOMAIN` to
    match.
 
-### 7. Confirm Google OAuth app's publishing status
+### 6. Confirm Google OAuth app's publishing status
 Worth double-checking in Google Cloud Console → OAuth consent screen:
 if the app is still in **Testing** mode (not verified/published), only
 pre-approved test-user Google accounts can actually complete
@@ -131,7 +109,7 @@ process, with its own requirements once you request scopes beyond the
 basic ones already used here) is needed before this is usable by the
 general public.
 
-### 8. Apple sign-in / passwordless email
+### 7. Apple sign-in / passwordless email
 Already tracked in [ADR 0008](../decisions/0008-cognito-google-oauth.md)
 and the README's "Next milestone" section -- not repeated here in
 detail, just cross-referenced so this file is a complete index of
