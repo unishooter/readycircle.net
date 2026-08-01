@@ -249,10 +249,14 @@ Session Manager, not SSH.
 - **Plan and document generation are placeholders.** `apps/worker`'s job
   handlers validate their message payloads and log receipt, but do not
   generate any real content -- no AI-assisted drafting, no PDF rendering.
-- **No map-based location picker.** Station and Circle location entry uses
-  plain text/number fields today; the data model (precision levels, grid
-  identifiers, generalized area labels) is shaped so a MapLibre-based
-  boundary picker can be added later without a schema change.
+- **Station location has a map-based picker; Circle location does not yet.**
+  Stations use a Leaflet + OpenStreetMap map (click-to-select a 1km MGRS
+  cell, or drop a precise pin) or a geocoded zip/city/county/state search,
+  with the server always deriving a canonical MGRS grid code from whatever
+  coordinates are on file (see
+  [ADR 9](docs/decisions/0009-mgrs-location-capture.md)). Radio Circles
+  still use a plain free-text area/grid field, since this milestone's scope
+  was stations only.
 - **No equipment inventory, plans, nets, or contacts UI yet.** These are
   visible as "coming in a future milestone" placeholders in the app shell.
 - Spec section 27 (explicitly out of scope) was not implemented.
@@ -264,8 +268,12 @@ The natural next slice of work, building on this foundation:
 1. Complete the AWS/Google console setup in
    [`docs/deployment/cognito-google-setup.md`](docs/deployment/cognito-google-setup.md)
    and do a real end-to-end sign-in test against a live Cognito user pool.
-2. Add a MapLibre-based boundary/location picker to the station and Circle
-   wizards, replacing the manual lat/lng entry.
+2. Bring the same map-based location picker (see
+   [ADR 9](docs/decisions/0009-mgrs-location-capture.md)) to the Circle
+   wizard, replacing its remaining free-text area/grid fields.
+   Also: build the "find nearby stations" feature on top of the
+   `findNearbyStations` groundwork already in place
+   (`apps/api/src/modules/stations/nearby.ts`).
 3. Implement real plan generation: assemble a Circle's stations, member
    roles, and capabilities into a structured plan, persist plan versions
    (immutable once published), and render a document via the worker

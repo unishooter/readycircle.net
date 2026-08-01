@@ -1,4 +1,4 @@
-import { boolean, customType, doublePrecision, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, customType, doublePrecision, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from './identity.js';
 
@@ -50,19 +50,28 @@ export const stations = pgTable('stations', {
  * independently, and so display precision is modeled distinctly from the
  * underlying stored coordinates.
  */
-export const stationLocations = pgTable('station_locations', {
-  stationId: uuid('station_id')
-    .primaryKey()
-    .references(() => stations.id, { onDelete: 'cascade' }),
-  areaLabel: text('area_label'),
-  gridIdentifier: text('grid_identifier'),
-  precision: text('precision').notNull().default('hidden'),
-  latitude: doublePrecision('latitude'),
-  longitude: doublePrecision('longitude'),
-  geog: geographyPoint('geog'),
-  locationSource: text('location_source').notNull().default('manual'),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const stationLocations = pgTable(
+  'station_locations',
+  {
+    stationId: uuid('station_id')
+      .primaryKey()
+      .references(() => stations.id, { onDelete: 'cascade' }),
+    areaLabel: text('area_label'),
+    gridIdentifier: text('grid_identifier'),
+    precision: text('precision').notNull().default('hidden'),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
+    geog: geographyPoint('geog'),
+    locationSource: text('location_source').notNull().default('manual'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // Supports ST_DWithin/ST_Distance "find nearby" queries (see
+    // findNearbyStations in apps/api) -- geog has been populated on every
+    // write since the initial migration, but had no spatial index until now.
+    geogGistIdx: index('station_locations_geog_gist_idx').using('gist', table.geog),
+  }),
+);
 
 /** Who may see a shaped version of this station, separate from location precision. */
 export const stationPrivacy = pgTable('station_privacy', {

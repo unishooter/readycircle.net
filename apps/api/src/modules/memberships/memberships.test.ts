@@ -5,7 +5,7 @@ function stationPayload(name: string, extra: Record<string, unknown> = {}) {
   return {
     name,
     stationType: 'home',
-    location: { areaLabel: 'Test Area', precision: 'one_km_grid', gridIdentifier: 'AB12', latitude: 40.1, longitude: -88.2 },
+    location: { areaLabel: 'Test Area', precision: 'one_km_grid', latitude: 40.1, longitude: -88.2 },
     capabilities: ['frs'],
     experienceLevel: 'comfortable',
     authorization: 'frs_user',
@@ -106,7 +106,8 @@ describe('memberships API', () => {
     expect(body.isOwner).toBe(false);
     expect(body.location.latitude).toBeNull();
     expect(body.location.longitude).toBeNull();
-    expect(body.location.gridIdentifier).toBe('AB12');
+    // Server-derived 1km MGRS code for (40.1, -88.2) -- see packages/geo.
+    expect(body.location.gridIdentifier).toBe('16TCK9739');
   });
 
   it('still rejects a true nonmember from viewing a circle-visible station', async () => {

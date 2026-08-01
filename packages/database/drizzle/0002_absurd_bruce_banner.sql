@@ -1,0 +1,1 @@
+CREATE INDEX "station_locations_geog_gist_idx" ON "station_locations" USING gist ("geog");

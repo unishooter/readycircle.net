@@ -11,7 +11,8 @@ import {
   stations,
   type Database,
 } from '@readycircle/database';
-import type { CreateStationInput, UpdateStationInput } from '@readycircle/contracts';
+import type { CreateStationInput, StationLocationInput, UpdateStationInput } from '@readycircle/contracts';
+import { deriveGridIdentifier } from '@readycircle/geo';
 
 export interface FullStationRecord {
   station: typeof stations.$inferSelect;
@@ -65,6 +66,18 @@ export async function getStationById(db: Database, stationId: string): Promise<F
   return withCapabilities ?? null;
 }
 
+/**
+ * The stored `gridIdentifier` is always the canonical 1km MGRS "geo fence
+ * code" derived from whatever coordinates are on file, independent of the
+ * display `precision` -- see docs/decisions/0009-mgrs-location-capture.md.
+ * Clients never supply it directly (there's no free-text grid input; see
+ * `stationLocationInputSchema`), so it's computed here rather than trusted
+ * from input.
+ */
+function resolveGridIdentifier(location: StationLocationInput): string | null {
+  return deriveGridIdentifier(location.latitude, location.longitude);
+}
+
 async function upsertGeography(db: Database, stationId: string, latitude?: number, longitude?: number): Promise<void> {
   if (latitude != null && longitude != null) {
     await db.execute(
@@ -100,11 +113,11 @@ export async function createStationRecord(
   await db.insert(stationLocations).values({
     stationId: station.id,
     areaLabel: input.location.areaLabel ?? null,
-    gridIdentifier: input.location.gridIdentifier ?? null,
+    gridIdentifier: resolveGridIdentifier(input.location),
     precision: input.location.precision,
     latitude: input.location.latitude ?? null,
     longitude: input.location.longitude ?? null,
-    locationSource: 'manual',
+    locationSource: input.location.locationSource ?? 'manual',
   });
   await upsertGeography(db, station.id, input.location.latitude, input.location.longitude);
 
@@ -150,10 +163,11 @@ export async function updateStationRecord(
       .update(stationLocations)
       .set({
         areaLabel: input.location.areaLabel ?? null,
-        gridIdentifier: input.location.gridIdentifier ?? null,
+        gridIdentifier: resolveGridIdentifier(input.location),
         precision: input.location.precision,
         latitude: input.location.latitude ?? null,
         longitude: input.location.longitude ?? null,
+        locationSource: input.location.locationSource ?? 'manual',
         updatedAt: new Date(),
       })
       .where(eq(stationLocations.stationId, stationId));

@@ -23,6 +23,7 @@ import { userRoutes } from './modules/users/routes.js';
 import { stationRoutes } from './modules/stations/routes.js';
 import { circleRoutes } from './modules/circles/routes.js';
 import { membershipRoutes } from './modules/memberships/routes.js';
+import { geocodingRoutes } from './modules/geocoding/routes.js';
 
 export interface BuildServerOptions {
   config: AppConfig;
@@ -83,6 +84,7 @@ export function buildServer({ config, db }: BuildServerOptions): FastifyInstance
   app.register(stationRoutes, { prefix: '/api/v1' });
   app.register(circleRoutes, { prefix: '/api/v1' });
   app.register(membershipRoutes, { prefix: '/api/v1' });
+  app.register(geocodingRoutes, { prefix: '/api/v1' });
 
   return app;
 }

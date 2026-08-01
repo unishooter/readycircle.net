@@ -19,6 +19,7 @@
     "@readycircle/contracts": "workspace:*",
     "@readycircle/database": "workspace:*",
     "@readycircle/domain": "workspace:*",
+    "@readycircle/geo": "workspace:*",
     "@readycircle/observability": "workspace:*",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.2",

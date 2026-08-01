@@ -10,6 +10,7 @@ import { AccountPage } from './routes/app/AccountPage.js';
 import { StationsListPage } from './routes/app/stations/StationsListPage.js';
 import { StationWizardPage } from './routes/app/stations/StationWizardPage.js';
 import { StationDetailPage } from './routes/app/stations/StationDetailPage.js';
+import { StationEditPage } from './routes/app/stations/StationEditPage.js';
 import { CirclesListPage } from './routes/app/circles/CirclesListPage.js';
 import { CircleWizardPage } from './routes/app/circles/CircleWizardPage.js';
 import { CircleDetailPage } from './routes/app/circles/CircleDetailPage.js';
@@ -28,6 +29,7 @@ export function App() {
             <Route path="stations" element={<StationsListPage />} />
             <Route path="stations/new" element={<StationWizardPage />} />
             <Route path="stations/:stationId" element={<StationDetailPage />} />
+            <Route path="stations/:stationId/edit" element={<StationEditPage />} />
             <Route path="circles" element={<CirclesListPage />} />
             <Route path="circles/new" element={<CircleWizardPage />} />
             <Route path="circles/:circleId" element={<CircleDetailPage />} />

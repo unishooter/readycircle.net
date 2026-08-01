@@ -131,7 +131,12 @@ async function main() {
     {
       stationId: benStation.id,
       areaLabel: 'Riverside district',
-      gridIdentifier: 'FN20QR',
+      // Realistic-looking 1km MGRS code, for consistency with the format
+      // the API now derives server-side from real coordinates (see
+      // @readycircle/geo). This seed row bypasses that derivation --
+      // writing straight to the DB, not through the API -- so it's a
+      // cosmetic sample value only, not tied to an actual coordinate.
+      gridIdentifier: '16SBK7308',
       precision: 'one_km_grid',
       locationSource: 'manual',
     },

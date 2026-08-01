@@ -2,29 +2,25 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AUTHORIZATION_LABELS,
-  EXPERIENCE_LEVEL_LABELS,
-  LOCATION_PRECISION_LABELS,
   RADIO_CAPABILITY_LABELS,
-  STATION_GOAL_LABELS,
   STATION_TYPE_LABELS,
   STATION_VISIBILITY_LABELS,
-  authorizationSchema,
-  experienceLevelSchema,
-  locationPrecisionSchema,
-  radioCapabilitySchema,
-  stationGoalSchema,
-  stationTypeSchema,
-  stationVisibilitySchema,
-  type CreateStationInput,
 } from '@readycircle/contracts';
-import { Button, Card, CheckboxOption, Field, RadioOption, Select, Stepper, TextInput } from '@readycircle/ui';
+import { Button, Card, Stepper } from '@readycircle/ui';
 import { useCreateStation } from '../../../features/stations/api.js';
+import {
+  StationCapabilitiesSection,
+  StationExperienceSection,
+  StationGoalsSection,
+  StationIdentitySection,
+  StationLocationSection,
+  StationParticipationPrivacySection,
+  type StationFormDraft,
+} from '../../../features/stations/form-sections/index.js';
 
 const STEPS = ['Identity', 'Location', 'Capability', 'Experience', 'Goals', 'Participation & privacy', 'Review'];
 
-type DraftStation = CreateStationInput;
-
-const initialDraft: DraftStation = {
+const initialDraft: StationFormDraft = {
   name: '',
   stationType: 'home',
   location: { precision: 'broad_area', areaLabel: '' },
@@ -39,18 +35,22 @@ const initialDraft: DraftStation = {
   visibility: 'private',
 };
 
-function toggleValue<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
-}
-
 export function StationWizardPage() {
   const navigate = useNavigate();
   const createStation = useCreateStation();
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<DraftStation>(initialDraft);
+  const [draft, setDraft] = useState<StationFormDraft>(initialDraft);
 
   const isLastStep = step === STEPS.length - 1;
   const canProceed = step !== 0 || draft.name.trim().length > 0;
+
+  function patchDraft(patch: Partial<StationFormDraft>) {
+    setDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function patchLocation(patch: Partial<StationFormDraft['location']>) {
+    setDraft((current) => ({ ...current, location: { ...current.location, ...patch } }));
+  }
 
   async function handleSubmit() {
     const created = await createStation.mutateAsync({
@@ -70,183 +70,12 @@ export function StationWizardPage() {
       <Stepper steps={STEPS} currentStep={step} />
 
       <Card>
-        {step === 0 ? (
-          <div className="space-y-4">
-            <Field label="Station name" required hint="e.g. 'Home base' or 'Ana's Go-Kit'">
-              {(id) => (
-                <TextInput
-                  id={id}
-                  value={draft.name}
-                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                  autoFocus
-                />
-              )}
-            </Field>
-            <Field label="Station type" required>
-              {(id) => (
-                <Select
-                  id={id}
-                  value={draft.stationType}
-                  onChange={(event) => setDraft({ ...draft, stationType: event.target.value as DraftStation['stationType'] })}
-                >
-                  {stationTypeSchema.options.map((option) => (
-                    <option key={option} value={option}>
-                      {STATION_TYPE_LABELS[option]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          </div>
-        ) : null}
-
-        {step === 1 ? (
-          <div className="space-y-4">
-            <Field label="General area" hint="A neighborhood, town, or region name -- never your exact address.">
-              {(id) => (
-                <TextInput
-                  id={id}
-                  value={draft.location.areaLabel ?? ''}
-                  onChange={(event) => setDraft({ ...draft, location: { ...draft.location, areaLabel: event.target.value } })}
-                  placeholder="e.g. Downtown Springfield"
-                />
-              )}
-            </Field>
-            <Field label="Display precision" required hint="Controls what others in your Circle can see. Your exact coordinates are never shared.">
-              {(id) => (
-                <Select
-                  id={id}
-                  value={draft.location.precision}
-                  onChange={(event) => setDraft({ ...draft, location: { ...draft.location, precision: event.target.value as DraftStation['location']['precision'] } })}
-                >
-                  {locationPrecisionSchema.options.map((option) => (
-                    <option key={option} value={option}>
-                      {LOCATION_PRECISION_LABELS[option]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            {draft.location.precision === 'one_km_grid' ? (
-              <Field label="Grid identifier" hint="e.g. a Maidenhead grid square like FN20QR">
-                {(id) => (
-                  <TextInput
-                    id={id}
-                    value={draft.location.gridIdentifier ?? ''}
-                    onChange={(event) => setDraft({ ...draft, location: { ...draft.location, gridIdentifier: event.target.value } })}
-                  />
-                )}
-              </Field>
-            ) : null}
-            <p className="text-xs text-ink/50">
-              A map-based boundary picker is coming in a future milestone. For now, coordinates you enter here are
-              stored privately and only ever shown to you.
-            </p>
-          </div>
-        ) : null}
-
-        {step === 2 ? (
-          <div className="space-y-3">
-            <p className="text-sm text-ink/60">What can this station use? Select all that apply.</p>
-            {radioCapabilitySchema.options.map((option) => (
-              <CheckboxOption
-                key={option}
-                label={RADIO_CAPABILITY_LABELS[option]}
-                checked={draft.capabilities.includes(option)}
-                onChange={() => setDraft({ ...draft, capabilities: toggleValue(draft.capabilities, option) })}
-              />
-            ))}
-          </div>
-        ) : null}
-
-        {step === 3 ? (
-          <div className="space-y-4">
-            <Field label="Experience level" required>
-              {(id) => (
-                <Select
-                  id={id}
-                  value={draft.experienceLevel}
-                  onChange={(event) => setDraft({ ...draft, experienceLevel: event.target.value as DraftStation['experienceLevel'] })}
-                >
-                  {experienceLevelSchema.options.map((option) => (
-                    <option key={option} value={option}>
-                      {EXPERIENCE_LEVEL_LABELS[option]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Authorization" required>
-              {(id) => (
-                <Select
-                  id={id}
-                  value={draft.authorization}
-                  onChange={(event) => setDraft({ ...draft, authorization: event.target.value as DraftStation['authorization'] })}
-                >
-                  {authorizationSchema.options.map((option) => (
-                    <option key={option} value={option}>
-                      {AUTHORIZATION_LABELS[option]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          </div>
-        ) : null}
-
-        {step === 4 ? (
-          <div className="space-y-3">
-            <p className="text-sm text-ink/60">What do you want to use this station for? Select all that apply.</p>
-            {stationGoalSchema.options.map((option) => (
-              <CheckboxOption
-                key={option}
-                label={STATION_GOAL_LABELS[option]}
-                checked={draft.goals.includes(option)}
-                onChange={() => setDraft({ ...draft, goals: toggleValue(draft.goals, option) })}
-              />
-            ))}
-          </div>
-        ) : null}
-
-        {step === 5 ? (
-          <div className="space-y-5">
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-ink">Participation</p>
-              <CheckboxOption
-                label="Participate in scheduled check-ins"
-                checked={draft.participatesInScheduledChecks}
-                onChange={(event) => setDraft({ ...draft, participatesInScheduledChecks: event.target.checked })}
-              />
-              <CheckboxOption
-                label="Willing to relay messages for others"
-                checked={draft.willingToRelay}
-                onChange={(event) => setDraft({ ...draft, willingToRelay: event.target.checked })}
-              />
-              <CheckboxOption
-                label="Willing to act as net control"
-                checked={draft.willingToActAsNetControl}
-                onChange={(event) => setDraft({ ...draft, willingToActAsNetControl: event.target.checked })}
-              />
-              <CheckboxOption
-                label="Receive-only (this station cannot transmit)"
-                checked={draft.receiveOnly}
-                onChange={(event) => setDraft({ ...draft, receiveOnly: event.target.checked })}
-              />
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-ink">Who can see this station?</p>
-              {stationVisibilitySchema.options.map((option) => (
-                <RadioOption
-                  key={option}
-                  name="visibility"
-                  label={STATION_VISIBILITY_LABELS[option]}
-                  checked={draft.visibility === option}
-                  onChange={() => setDraft({ ...draft, visibility: option })}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
+        {step === 0 ? <StationIdentitySection draft={draft} onChange={patchDraft} autoFocusName /> : null}
+        {step === 1 ? <StationLocationSection location={draft.location} onChange={patchLocation} /> : null}
+        {step === 2 ? <StationCapabilitiesSection draft={draft} onChange={patchDraft} /> : null}
+        {step === 3 ? <StationExperienceSection draft={draft} onChange={patchDraft} /> : null}
+        {step === 4 ? <StationGoalsSection draft={draft} onChange={patchDraft} /> : null}
+        {step === 5 ? <StationParticipationPrivacySection draft={draft} onChange={patchDraft} /> : null}
 
         {step === 6 ? (
           <div className="space-y-4 text-sm">
@@ -271,6 +100,10 @@ export function StationWizardPage() {
                     ? draft.capabilities.map((c) => RADIO_CAPABILITY_LABELS[c]).join(', ')
                     : 'FRS (default)'}
                 </dd>
+              </div>
+              <div className="flex justify-between border-b border-black/5 pb-2">
+                <dt className="text-ink/60">Authorization</dt>
+                <dd className="font-medium text-ink">{AUTHORIZATION_LABELS[draft.authorization]}</dd>
               </div>
               <div className="flex justify-between border-b border-black/5 pb-2">
                 <dt className="text-ink/60">Visibility</dt>

@@ -43,6 +43,12 @@ const envSchema = z.object({
 
   DEV_AUTH_ENABLED: booleanFromString.default(false),
   DEV_AUTH_UNSAFE_OVERRIDE: booleanFromString.default(false),
+
+  // OpenStreetMap Nominatim's usage policy requires requests to identify the
+  // application with a contact address (https://operations.osmfoundation.org/policies/nominatim/).
+  // Defaults to a generic ReadyCircle address so geocoding still works
+  // out of the box in development; set a real monitored address in production.
+  GEOCODING_CONTACT_EMAIL: z.string().default('support@readycircle.net'),
 });
 
 export type RawEnv = z.infer<typeof envSchema>;
@@ -76,6 +82,9 @@ export interface AppConfig {
     /** Whether dev-auth routes should actually be registered. */
     enabled: boolean;
     unsafeOverrideUsed: boolean;
+  };
+  geocoding: {
+    contactEmail: string;
   };
 }
 
@@ -158,6 +167,9 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     devAuth: {
       enabled: devAuthEnabled,
       unsafeOverrideUsed: isProduction && env.DEV_AUTH_UNSAFE_OVERRIDE,
+    },
+    geocoding: {
+      contactEmail: env.GEOCODING_CONTACT_EMAIL,
     },
   };
 }

@@ -45,6 +45,41 @@ describe('stations API', () => {
     expect(body.ownerId).toBe(owner.userId);
     expect(body.name).toBe('Test Home Station');
     expect(body.location.latitude).toBe(39.5);
+    // Server-derived 1km MGRS code for (39.5, -89.5) -- see packages/geo.
+    // gridIdentifier is always derived from coordinates, regardless of the
+    // 'broad_area' display precision used here (that only controls what
+    // non-owners see, per shapeStationLocation).
+    expect(body.location.gridIdentifier).toBe('16SBJ8575');
+  });
+
+  it('ignores a client-supplied gridIdentifier and always derives it from coordinates', async () => {
+    const response = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/stations',
+      cookies: { rc_session: owner.sessionToken },
+      payload: stationPayload({
+        location: {
+          areaLabel: 'Test Neighborhood',
+          precision: 'one_km_grid',
+          latitude: 39.5,
+          longitude: -89.5,
+          gridIdentifier: 'NOT-A-REAL-GRID',
+        },
+      }),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().location.gridIdentifier).toBe('16SBJ8575');
+  });
+
+  it('derives no gridIdentifier when no coordinates are provided', async () => {
+    const response = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/stations',
+      cookies: { rc_session: owner.sessionToken },
+      payload: stationPayload({ location: { precision: 'hidden' } }),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().location.gridIdentifier).toBeNull();
   });
 
   it('lists only the caller\'s own stations', async () => {

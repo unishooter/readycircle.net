@@ -51,9 +51,14 @@ export function StationDetailPage() {
           <p className="mt-1 text-sm text-ink/60">{STATION_TYPE_LABELS[station.stationType]}</p>
         </div>
         {station.isOwner && station.status === 'active' ? (
-          <Button variant="danger" size="sm" onClick={() => void handleArchive()} disabled={archiveStation.isPending}>
-            Archive station
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={() => navigate(`/app/stations/${station.id}/edit`)}>
+              Edit
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => void handleArchive()} disabled={archiveStation.isPending}>
+              Archive station
+            </Button>
+          </div>
         ) : null}
       </div>
 
