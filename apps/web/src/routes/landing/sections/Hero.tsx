@@ -1,16 +1,23 @@
 import { Link } from 'react-router-dom';
 import { Container } from '@readycircle/ui';
 import { CircleIllustration } from '../CircleIllustration.js';
+import logoVertical from '../../../assets/readycircle-logo-vertical.png';
 
 export function Hero() {
   return (
     <section id="top" className="relative overflow-hidden pb-16 pt-14 sm:pb-24 sm:pt-20">
-      <Container className="grid items-center gap-12 lg:grid-cols-2">
+      <Container>
+        <div className="flex justify-center">
+          <img
+            src={logoVertical}
+            alt="ReadyCircle.net — Connect locally, be ready together."
+            className="h-40 w-auto sm:h-48"
+          />
+        </div>
+      </Container>
+      <Container className="mt-8 grid items-center gap-12 lg:grid-cols-2">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-navy-700">
-            Local radio communications planning
-          </p>
-          <h1 className="mt-4 text-4xl font-bold leading-tight text-ink sm:text-5xl">
+          <h1 className="text-4xl font-bold leading-tight text-ink sm:text-5xl">
             Build your local radio communications plan before you need it.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-ink/70">
