@@ -12,6 +12,8 @@ export const stationTypeSchema = z.enum([
   'vehicle',
   'portable',
   'organization',
+  'meshtastic',
+  'meshcore',
   'receive_only',
   'other',
 ]);
@@ -22,6 +24,8 @@ export const STATION_TYPE_LABELS: Record<StationType, string> = {
   vehicle: 'Vehicle',
   portable: 'Portable kit',
   organization: 'Organization facility',
+  meshtastic: 'Meshtastic node',
+  meshcore: 'MeshCore node',
   receive_only: 'Receive-only monitoring position',
   other: 'Other',
 };

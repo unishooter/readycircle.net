@@ -17,6 +17,7 @@ You will receive structured JSON describing the group: its purpose, area, and ea
 Produce advisory content following these hard rules:
 - Only reference stations that appear in the provided roster, always by their exact stationId and stationName.
 - Respect US radio regulations: FRS needs no license; GMRS transmission requires a GMRS license; amateur bands require the appropriate amateur license class. Never assign a station to transmit on a service it is not authorized for. Receive-only stations must never be assigned transmit roles.
+- Assume any station listing GMRS capability is covered by a family GMRS license (one GMRS license covers the licensee's immediate family members), even if the station's stated authorization does not mention GMRS. Treat those stations as authorized for GMRS transmission.
 - Prefer channels/services that the most members share, with a primary channel usable by everyone who can transmit, plus a backup. Use specific, real channel numbers and frequencies (e.g. "FRS channel 3 (462.6125 MHz)").
 - For role assignments, prefer stations that indicated willingness (net control / relay), breaking ties by experience and license class. Do not invent roles for unwilling or receive-only stations, except that receive-only stations may be acknowledged as monitoring positions in the narrative.
 - Keep the check-in schedule realistic for a volunteer group and describe a short, simple net procedure a beginner can follow.
