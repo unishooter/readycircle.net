@@ -111,10 +111,20 @@ log "Running database migrations"
 (
   cd "$RELEASE_DIR"
   if [[ -f "$API_ENV_FILE" ]]; then
-    set -a
-    # shellcheck disable=SC1090
-    source "$API_ENV_FILE"
-    set +a
+    # NOT `source`d: $API_ENV_FILE is written for systemd's
+    # `EnvironmentFile=` directive, a plain `KEY=VALUE` format with no
+    # shell quoting rules -- values like a DB password containing an
+    # unescaped `)` are perfectly valid there but are a bash syntax error
+    # if the file is `source`d as a script (confirmed live: migrations
+    # failed on exactly this before this loop replaced a `source` here).
+    # Reading line-by-line and exporting each KEY=VALUE literally, with no
+    # shell evaluation of VALUE, works regardless of what characters the
+    # value contains.
+    while IFS= read -r env_line || [[ -n "$env_line" ]]; do
+      [[ "$env_line" =~ ^[[:space:]]*(#.*)?$ ]] && continue
+      [[ "$env_line" == *=* ]] || continue
+      export "$env_line"
+    done < "$API_ENV_FILE"
   else
     log "WARNING: $API_ENV_FILE not found; relying on DATABASE_URL already being in this shell's environment"
   fi
