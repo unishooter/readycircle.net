@@ -164,7 +164,7 @@ export function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <a href="/" className="inline-flex items-center">
-            <img src={logoHorizontal} alt="ReadyCircle.net" className="h-9 w-auto" />
+            <img src={logoHorizontal} alt="ReadyCircle.net" className="h-14 w-auto" />
           </a>
           <h1 className="mt-4 text-2xl font-semibold text-ink">Sign in</h1>
         </div>
