@@ -85,6 +85,21 @@ stops being necessary -- but if manual/emergency in-place deploys stay
 a realistic scenario, `deploy.sh` could be extended to accept a
 directory path as an alternative to a tarball.
 
+This already caused a real, silent-failure outage: an early version of
+the manual command block used a `manual-YYYY.MM.DD-N` version tag with no
+existence check, a same-day second deploy reused a release directory that
+already existed from an earlier run, and `cp -r SRC DEST` nested `SRC`
+inside the existing `DEST` instead of overwriting it -- the fresh build
+landed one level too deep and Nginx kept serving the stale previous
+release, with no error anywhere in the deploy output. Fixed in the
+runbook's ["Manual in-place
+deploy"](./deployment-runbook.md#manual-in-place-deploy-until-ci-exists)
+section (per-second timestamp + explicit existence check that fails
+loudly), but `deploy.sh` itself has this exact protection already
+(`if [[ -d "$RELEASE_DIR" ]]; then fail ...`) and the manual flow doesn't
+-- another reason to fold manual in-place deploys into the script (see
+above) rather than keep them as separate copy-pasted commands.
+
 ## Low priority / cosmetic
 
 ### 6. Google's OAuth consent screen shows the raw Cognito domain

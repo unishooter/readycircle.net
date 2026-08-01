@@ -218,6 +218,56 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
    deployment/orchestration tooling -- this script is intentionally a single
    idempotent unit of work for one instance, not a fleet-wide orchestrator).
 
+### Manual in-place deploy (until CI exists)
+
+There's no CI pipeline yet (see
+[production-followups.md](./production-followups.md#4-no-ci-pipeline----deploys-are-entirely-manual-right-now)),
+so in practice releases are built directly on the instance from a git
+checkout instead of via the tarball flow above. Run this in the SSM
+session, from wherever the repo was cloned (e.g. `/tmp/readycircle-repo` --
+see "One-time host setup" above):
+
+```bash
+# 1. Pull latest and build
+cd /tmp/readycircle-repo
+git pull
+pnpm install
+pnpm build
+
+# 2. Cut a new release directory and swap the symlink
+VERSION="manual-$(date +%Y.%m.%d-%H%M%S)"
+RELEASE_DIR="/opt/readycircle/releases/$VERSION"
+if [[ -e "$RELEASE_DIR" ]]; then
+  echo "ERROR: $RELEASE_DIR already exists -- refusing to continue" >&2
+  exit 1
+fi
+sudo cp -r /tmp/readycircle-repo "$RELEASE_DIR"
+sudo chown -R readycircle:readycircle "$RELEASE_DIR"
+sudo ln -sfn "$RELEASE_DIR" /opt/readycircle/current
+
+# 3. Migrate (only if packages/database/src/migrations changed), restart, verify
+sudo systemctl restart readycircle-api readycircle-worker
+sudo systemctl status readycircle-api readycircle-worker --no-pager
+curl -s http://localhost/health/ready
+grep -o 'assets/index-[^"]*\.js' /opt/readycircle/current/apps/web/dist/index.html
+curl -s http://localhost/ | grep -o 'assets/index-[^"]*\.js'
+```
+
+**Why the timestamp, and why the explicit existence check**: this bit
+someone in practice -- `VERSION` used only a `YYYY.MM.DD-N` counter, and a
+second same-day deploy reused a `$RELEASE_DIR` that already existed from
+an earlier run. `cp -r SRC DEST` silently **nests** `SRC` inside `DEST`
+when `DEST` already exists (rather than overwriting its contents), so the
+freshly built `apps/web/dist` landed one level too deep at
+`$RELEASE_DIR/readycircle-repo/apps/web/dist` while Nginx kept serving the
+stale top-level `dist` from the earlier run -- no error at any step, just
+a deploy that silently didn't take effect. A per-second timestamp makes
+same-day collisions effectively impossible, and the explicit check turns
+any remaining collision into a loud failure instead of a silent nested
+copy. The last two `grep`/`curl` lines above exist specifically to catch
+this class of bug going forward: they should always print the same
+asset hash as each other and match what `pnpm build` just reported.
+
 ## Rollback
 
 Because the `current` symlink is only repointed after migrations succeed
