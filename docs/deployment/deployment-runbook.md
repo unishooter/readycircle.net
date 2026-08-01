@@ -21,12 +21,13 @@ meant to be applied to instances that already exist.
 - **S3** stores generated documents (plans, PDFs). **SQS** carries
   plan-generation and document-generation jobs from the API to the worker.
 - **Secrets Manager** / **SSM Parameter Store** holds `SESSION_SECRET`,
-  `DATABASE_URL`, and the Cognito credentials
+  `DATABASE_URL`, the Cognito credentials
   (`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`,
   `COGNITO_DOMAIN`, `COGNITO_REDIRECT_URI` -- see
   [cognito-google-setup.md](./cognito-google-setup.md) for how these are
-  obtained; `packages/config` refuses to start the API in production if any
-  are missing). These are rendered into `/etc/readycircle/api.env` and
+  obtained), and `OPENAI_API_KEY` (AI plan generation); `packages/config`
+  refuses to start the API in production if any are missing. These are
+  rendered into `/etc/readycircle/api.env` and
   `/etc/readycircle/worker.env` by whatever provisioning/config-management
   tooling manages the ASG launch template -- that step is outside this
   repo's scope.
@@ -131,10 +132,10 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
    **Both files should contain the same values.** `apps/worker` calls the
    same shared `loadConfig()` as `apps/api`, so the same
    production-required checklist (`SESSION_SECRET`, the three
-   `AWS_S3_*`/`AWS_SQS_*` variables, and all five `COGNITO_*` variables)
-   applies to both -- the worker refuses to start without them even
-   though it doesn't functionally use most of them (no sessions, no
-   sign-in). `NODE_ENV`/`APP_ENV` must both be `production`;
+   `AWS_S3_*`/`AWS_SQS_*` variables, all five `COGNITO_*` variables, and
+   `OPENAI_API_KEY`) applies to both -- the worker refuses to start
+   without them even though it doesn't functionally use most of them (no
+   sessions, no sign-in). `NODE_ENV`/`APP_ENV` must both be `production`;
    `APP_BASE_URL` and `API_PORT` are unused by the worker but harmless to
    include for consistency. Without a `sudoedit`/editor session handy,
    write a file non-interactively with:
@@ -231,6 +232,36 @@ helper script for some other manual process.
    per instance (or drive it from orchestration tooling) -- this script is
    intentionally a single idempotent unit of work for one instance, not a
    fleet-wide orchestrator.
+
+### Release-specific step: AI plan generation (first deploy that includes it)
+
+The plan-generation feature added new required production configuration.
+Before deploying a build that includes it:
+
+1. Add `OPENAI_API_KEY=<key>` to **both** `/etc/readycircle/api.env` and
+   `/etc/readycircle/worker.env` (the shared config loader requires it in
+   production for both processes). Optionally set `OPENAI_MODEL` (defaults
+   to `gpt-5.6-terra`).
+2. Verify the `AWS_SQS_PLAN_QUEUE_URL` and `AWS_SQS_DOCUMENT_QUEUE_URL`
+   values in both env files point at real queues, and that the instance
+   IAM role can `sqs:SendMessage` (API) and
+   `sqs:ReceiveMessage`/`sqs:DeleteMessage` (worker) on them. Quick check
+   from the instance:
+   ```bash
+   aws sqs get-queue-attributes --queue-url "<AWS_SQS_PLAN_QUEUE_URL>" --attribute-names QueueArn
+   ```
+   If the queue URLs are left **blank**, the API silently falls back to
+   running plan/document generation in-process (the local-development
+   path). That works, but the AI call and PDF rendering then happen inside
+   the API service instead of the worker -- acceptable as a stopgap, not
+   the intended production shape.
+3. Verify `AWS_S3_DOCUMENT_BUCKET` names a bucket the instance role can
+   `s3:PutObject`/`s3:GetObject` on; rendered plan PDFs are stored there
+   under `plans/<planId>/version-<n>.pdf`.
+4. After the deploy, generate a plan in the UI end to end (generate →
+   publish → download PDF) and watch
+   `journalctl -u readycircle-worker -f` for the `plan.generate` /
+   `document.generate` job logs.
 
 Once CI exists, the natural evolution is CI running `pnpm build`, packaging
 a tarball, and pushing it to S3 -- with `deploy.sh` (or a sibling script)

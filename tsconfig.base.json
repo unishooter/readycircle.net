@@ -17,6 +17,7 @@
     "noImplicitOverride": true,
     "declaration": false,
     "sourceMap": true,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "jsx": "react-jsx"
   }
 }

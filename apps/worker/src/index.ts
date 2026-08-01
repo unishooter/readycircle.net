@@ -5,9 +5,10 @@ import { ConfigError, loadConfig } from '@readycircle/config';
 import { createDatabase, pingDatabase } from '@readycircle/database';
 import { createLogger } from '@readycircle/observability';
 import { createSqsClient } from '@readycircle/aws';
+import { createAdvisoryProvider, createDocumentStore } from '@readycircle/plan-engine';
 import { JobHandlerRegistry } from './jobs/registry.js';
-import { handlePlanGeneration, PLAN_GENERATION_JOB_TYPE } from './jobs/handlers/plan-generation.js';
-import { handleDocumentGeneration, DOCUMENT_GENERATION_JOB_TYPE } from './jobs/handlers/document-generation.js';
+import { createPlanGenerationHandler, PLAN_GENERATION_JOB_TYPE } from './jobs/handlers/plan-generation.js';
+import { createDocumentGenerationHandler, DOCUMENT_GENERATION_JOB_TYPE } from './jobs/handlers/document-generation.js';
 import { QueuePoller } from './queue-poller.js';
 
 // See apps/api/src/index.ts for why this is safe in production too.
@@ -37,10 +38,23 @@ async function main() {
     process.exit(1);
   }
 
+  const advisoryProvider = createAdvisoryProvider({
+    apiKey: config.openai.apiKey,
+    model: config.openai.model,
+  });
+  const documentStore = createDocumentStore({
+    bucket: config.aws.documentBucket,
+    region: config.aws.region,
+    storagePath: config.documents.storagePath,
+  });
+
   const registry = new JobHandlerRegistry();
-  registry.register(PLAN_GENERATION_JOB_TYPE, handlePlanGeneration);
-  registry.register(DOCUMENT_GENERATION_JOB_TYPE, handleDocumentGeneration);
-  logger.info({ jobTypes: registry.registeredJobTypes }, 'job handlers registered');
+  registry.register(PLAN_GENERATION_JOB_TYPE, createPlanGenerationHandler({ db, advisoryProvider }));
+  registry.register(DOCUMENT_GENERATION_JOB_TYPE, createDocumentGenerationHandler({ db, documentStore }));
+  logger.info(
+    { jobTypes: registry.registeredJobTypes, openaiConfigured: config.openai.isConfigured, model: config.openai.model },
+    'job handlers registered',
+  );
 
   const sqsClient = createSqsClient({ region: config.aws.region });
 

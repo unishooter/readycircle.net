@@ -8,7 +8,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   noExternal: [/^@readycircle\//],
-  // See apps/api/tsup.config.ts for why pino must stay external.
-  external: ['pino'],
+  // See apps/api/tsup.config.ts for why these must stay external.
+  external: ['pino', 'openai', '@react-pdf/renderer', 'react'],
   dts: false,
 });

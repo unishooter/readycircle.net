@@ -22,6 +22,20 @@
       "when": 1785601445195,
       "tag": "0002_absurd_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785608115687,
+      "tag": "0003_gray_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785609753320,
+      "tag": "0004_nervous_shocker",
+      "breakpoints": true
     }
   ]
 }

@@ -49,6 +49,17 @@ const envSchema = z.object({
   // Defaults to a generic ReadyCircle address so geocoding still works
   // out of the box in development; set a real monitored address in production.
   GEOCODING_CONTACT_EMAIL: z.string().default('support@readycircle.net'),
+
+  // AI-assisted plan generation. The key is required in production (plan
+  // generation is a core feature there); in development a missing key simply
+  // makes generation fail with a clear error rather than blocking startup.
+  OPENAI_API_KEY: z.string().default(''),
+  OPENAI_MODEL: z.string().default('gpt-5.6-terra'),
+
+  // Where rendered plan documents are written when AWS_S3_DOCUMENT_BUCKET is
+  // not configured (local development). Relative paths resolve against the
+  // process working directory.
+  DOCUMENT_STORAGE_PATH: z.string().default('.data/documents'),
 });
 
 export type RawEnv = z.infer<typeof envSchema>;
@@ -85,6 +96,15 @@ export interface AppConfig {
   };
   geocoding: {
     contactEmail: string;
+  };
+  openai: {
+    apiKey: string;
+    model: string;
+    isConfigured: boolean;
+  };
+  documents: {
+    /** Local filesystem fallback used when no S3 bucket is configured. */
+    storagePath: string;
   };
 }
 
@@ -128,6 +148,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     if (!env.COGNITO_CLIENT_SECRET) missing.push('COGNITO_CLIENT_SECRET');
     if (!env.COGNITO_DOMAIN) missing.push('COGNITO_DOMAIN');
     if (!env.COGNITO_REDIRECT_URI) missing.push('COGNITO_REDIRECT_URI');
+    if (!env.OPENAI_API_KEY) missing.push('OPENAI_API_KEY');
     if (missing.length > 0) {
       throw new ConfigError(
         `Missing required production configuration:\n${missing.map((m) => `  - ${m}`).join('\n')}`,
@@ -170,6 +191,14 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     geocoding: {
       contactEmail: env.GEOCODING_CONTACT_EMAIL,
+    },
+    openai: {
+      apiKey: env.OPENAI_API_KEY,
+      model: env.OPENAI_MODEL,
+      isConfigured: Boolean(env.OPENAI_API_KEY),
+    },
+    documents: {
+      storagePath: env.DOCUMENT_STORAGE_PATH,
     },
   };
 }

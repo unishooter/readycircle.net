@@ -8,7 +8,7 @@ const navItems = [
   { to: '/app', label: 'Dashboard', end: true },
   { to: '/app/stations', label: 'My Stations' },
   { to: '/app/circles', label: 'My Radio Circles' },
-  { to: '/app/plans', label: 'Plans', comingSoon: true },
+  { to: '/app/plans', label: 'Plans' },
   { to: '/app/nets', label: 'Nets', comingSoon: true },
   { to: '/app/contacts', label: 'Contacts', comingSoon: true },
   { to: '/app/privacy', label: 'Privacy' },

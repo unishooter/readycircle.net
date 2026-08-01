@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { loadConfig } from '@readycircle/config';
 import { createDatabase, users, type Database } from '@readycircle/database';
-import { buildServer } from '../server.js';
+import { buildServer, type BuildServerOptions } from '../server.js';
 
 export interface TestContext {
   app: FastifyInstance;
@@ -10,13 +10,18 @@ export interface TestContext {
   close: () => Promise<void>;
 }
 
+export type TestServerOverrides = Pick<BuildServerOptions, 'planJobDispatcher' | 'planDocumentStore'>;
+
 /**
  * Builds a real Fastify app wired to the Postgres database pointed to by
  * `DATABASE_URL` (defaulting to the local docker-compose instance).
  * Integration tests exercise the actual database rather than mocks, per
  * the project's testing requirements; run `pnpm db:migrate` first.
  */
-export async function createTestContext(envOverrides: Record<string, string> = {}): Promise<TestContext> {
+export async function createTestContext(
+  envOverrides: Record<string, string> = {},
+  serverOverrides: TestServerOverrides = {},
+): Promise<TestContext> {
   const config = loadConfig({
     NODE_ENV: 'test',
     APP_ENV: 'test',
@@ -28,7 +33,7 @@ export async function createTestContext(envOverrides: Record<string, string> = {
     ...envOverrides,
   });
   const { db, close } = createDatabase(config.databaseUrl);
-  const app = buildServer({ config, db });
+  const app = buildServer({ config, db, ...serverOverrides });
   await app.ready();
 
   return {

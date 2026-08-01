@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Badge, Button, Card, CardTitle, Select } from '@readycircle/ui';
 import {
   useAddMember,
@@ -9,15 +9,20 @@ import {
   useUpdateMember,
 } from '../../../features/circles/api.js';
 import { useStations } from '../../../features/stations/api.js';
+import { useCirclePlans, useGeneratePlan } from '../../../features/plans/api.js';
+import { VersionStatusBadge } from '../plans/plan-status.js';
 
 export function CircleDetailPage() {
   const { circleId } = useParams<{ circleId: string }>();
+  const navigate = useNavigate();
   const { data: circle, isLoading, error } = useCircle(circleId);
   const { data: membersData, isLoading: membersLoading } = useCircleMembers(circleId);
   const { data: stationsData } = useStations();
+  const { data: plansData } = useCirclePlans(circleId);
   const addMember = useAddMember(circleId ?? '');
   const updateMember = useUpdateMember(circleId ?? '');
   const removeMember = useRemoveMember(circleId ?? '');
+  const generatePlan = useGeneratePlan(circleId ?? '');
   const [selectedStationId, setSelectedStationId] = useState('');
 
   if (isLoading) return <p className="text-sm text-ink/50">Loading…</p>;
@@ -44,10 +49,18 @@ export function CircleDetailPage() {
     (s) => s.status === 'active' && !memberStationIds.has(s.id),
   );
 
+  const plans = plansData?.items ?? [];
+  const anyPlanGenerating = plans.some((plan) => plan.latestVersion?.status === 'generating');
+
   async function handleAddMember() {
     if (!selectedStationId) return;
     await addMember.mutateAsync({ stationId: selectedStationId });
     setSelectedStationId('');
+  }
+
+  async function handleGeneratePlan() {
+    const plan = await generatePlan.mutateAsync({});
+    navigate(`/app/plans/${plan.id}`);
   }
 
   return (
@@ -86,11 +99,57 @@ export function CircleDetailPage() {
         </Card>
 
         <Card>
-          <CardTitle>Next action</CardTitle>
-          <p className="mt-3 text-sm text-ink/60">
-            Generated plans, scheduled nets, and shared contacts are coming in a future milestone. For
-            now, keep your Circle&apos;s roster current.
-          </p>
+          <CardTitle>Communications plan</CardTitle>
+          {plans.length === 0 ? (
+            <>
+              <p className="mt-3 text-sm text-ink/60">
+                {isCoordinator
+                  ? 'Generate a communications plan from this Circle\u2019s stations, capabilities, and roles.'
+                  : 'No plan yet. A Circle coordinator can generate one.'}
+              </p>
+              {isCoordinator ? (
+                <Button
+                  className="mt-4"
+                  onClick={() => void handleGeneratePlan()}
+                  disabled={generatePlan.isPending}
+                >
+                  {generatePlan.isPending ? 'Starting…' : 'Generate plan'}
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <ul className="mt-3 space-y-2">
+                {plans.slice(0, 3).map((plan) => (
+                  <li key={plan.id}>
+                    <Link
+                      to={`/app/plans/${plan.id}`}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-black/5 px-3 py-2 hover:border-navy-300 hover:bg-navy-50"
+                    >
+                      <span className="truncate text-sm font-medium text-ink">{plan.title}</span>
+                      <VersionStatusBadge version={plan.latestVersion} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {isCoordinator ? (
+                <Button
+                  className="mt-4"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void handleGeneratePlan()}
+                  disabled={generatePlan.isPending || anyPlanGenerating}
+                >
+                  Generate another plan
+                </Button>
+              ) : null}
+            </>
+          )}
+          {generatePlan.isError ? (
+            <p role="alert" className="mt-2 text-xs text-red-700">
+              {(generatePlan.error as Error).message}
+            </p>
+          ) : null}
         </Card>
       </div>
 

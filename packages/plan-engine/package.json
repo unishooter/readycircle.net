@@ -1,0 +1,31 @@
+{
+  "name": "@readycircle/plan-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "^4.1.6",
+    "@readycircle/aws": "workspace:*",
+    "@readycircle/contracts": "workspace:*",
+    "@readycircle/database": "workspace:*",
+    "@readycircle/domain": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "openai": "^7.3.0",
+    "react": "^18.3.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

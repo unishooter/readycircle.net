@@ -1,5 +1,5 @@
-export { createS3Client, putDocument } from './s3.js';
-export type { S3ClientOptions, PutDocumentInput } from './s3.js';
+export { createS3Client, putDocument, getDocument } from './s3.js';
+export type { S3ClientOptions, PutDocumentInput, GetDocumentResult } from './s3.js';
 
 export { createSqsClient, receiveMessages, deleteMessage, sendMessage } from './sqs.js';
 export type { SqsClientOptions, ReceiveOptions, SqsMessage } from './sqs.js';

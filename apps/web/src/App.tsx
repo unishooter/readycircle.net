@@ -14,6 +14,8 @@ import { StationEditPage } from './routes/app/stations/StationEditPage.js';
 import { CirclesListPage } from './routes/app/circles/CirclesListPage.js';
 import { CircleWizardPage } from './routes/app/circles/CircleWizardPage.js';
 import { CircleDetailPage } from './routes/app/circles/CircleDetailPage.js';
+import { PlansListPage } from './routes/app/plans/PlansListPage.js';
+import { PlanDetailPage } from './routes/app/plans/PlanDetailPage.js';
 import { NotFoundPage } from './routes/NotFoundPage.js';
 
 export function App() {
@@ -33,15 +35,8 @@ export function App() {
             <Route path="circles" element={<CirclesListPage />} />
             <Route path="circles/new" element={<CircleWizardPage />} />
             <Route path="circles/:circleId" element={<CircleDetailPage />} />
-            <Route
-              path="plans"
-              element={
-                <ComingSoonPage
-                  title="Plans"
-                  description="Generated communications plans, built from your stations and Circles, are coming in a future milestone."
-                />
-              }
-            />
+            <Route path="plans" element={<PlansListPage />} />
+            <Route path="plans/:planId" element={<PlanDetailPage />} />
             <Route
               path="nets"
               element={

@@ -5,11 +5,12 @@ operators build a local communications plan *before* they need it. People
 register their **stations** (a radio setup -- handheld, home base, vehicle,
 or organization facility), group stations into a **Radio Circle** (a
 neighborhood, family, or organization group that communicates together),
-and -- in a future milestone -- generate a shared plan for staying in touch
-when cellular, internet, or power service goes down. This repository is the
-initial application foundation: a public landing page, an authenticated app
-shell, station and Radio Circle management, and the backend/infrastructure
-scaffolding those features run on.
+and generate a shared **communications plan** -- roster, channel plan, role
+assignments, check-in schedule, and gap analysis, with a printable PDF --
+for staying in touch when cellular, internet, or power service goes down.
+This repository contains the full application: a public landing page, an
+authenticated app shell, station and Radio Circle management, AI-assisted
+plan generation, and the backend/infrastructure those features run on.
 
 ## Architecture
 
@@ -40,14 +41,22 @@ later if a module needs to scale independently.
   Drizzle ORM. REST endpoints under `/api/v1`, plus `/health/live` and
   `/health/ready`.
 - **`apps/worker`** -- long-polls SQS queues and dispatches messages to
-  registered job handlers (currently placeholders for plan/document
-  generation). Runs independently of the API so slow/queued work never
-  blocks HTTP requests.
+  registered job handlers (`plan.generate`, `document.generate`). Runs
+  independently of the API so slow/queued work (AI calls, PDF rendering)
+  never blocks HTTP requests.
 - **`packages/contracts`** -- Zod schemas + inferred TypeScript types
   shared by the API and the web app, so request/response shapes can never
   drift between frontend and backend.
 - **`packages/domain`** -- pure business rules (authorization predicates,
   visibility shaping) with no I/O, so they're trivial to unit test.
+- **`packages/plan-engine`** -- the plan-generation pipeline: Circle context
+  builder, deterministic section builders, an `AdvisoryProvider` interface
+  with an OpenAI Structured Outputs implementation, PDF rendering
+  (`@react-pdf/renderer`), and the S3/local `DocumentStore`. Shared by the
+  worker (production) and the API's in-process development fallback -- see
+  [ADR 10](docs/decisions/0010-hybrid-ai-plan-generation.md).
+- **`packages/geo`** -- pure lat/lng ↔ MGRS grid math (no app dependencies),
+  used by both the API and the map picker in the web app.
 - **`packages/database`** -- Drizzle ORM schema, migrations, and seed data.
 - **`packages/auth`** -- session management plus two authentication
   providers: a development provider (cookie-based, no password) and a real
@@ -77,7 +86,9 @@ packages/
   contracts/    Shared Zod schemas + types
   database/     Drizzle ORM schema, migrations, seed script
   domain/       Pure business logic (authorization, visibility)
+  geo/          Lat/lng <-> MGRS grid conversion
   observability/Structured logging + request IDs
+  plan-engine/  Plan generation pipeline (context, AI advisory, PDF, storage)
   ui/           Shared React component primitives
 infrastructure/
   nginx/        Nginx site config (static assets + reverse proxy)
@@ -127,8 +138,10 @@ notable ones:
 | `DATABASE_URL` | PostgreSQL connection string. |
 | `SESSION_SECRET` | Signs session cookies. Must be a real random value in production (the API refuses to start otherwise). |
 | `DEV_AUTH_ENABLED` | Enables passwordless development sign-in. The API refuses to start with this `true` when `APP_ENV=production`, unless `DEV_AUTH_UNSAFE_OVERRIDE=true` is also set. |
-| `AWS_REGION`, `AWS_S3_DOCUMENT_BUCKET`, `AWS_SQS_PLAN_QUEUE_URL`, `AWS_SQS_DOCUMENT_QUEUE_URL` | Required in production; the worker idles (with a warning) if a queue URL is unset, which is expected in local development. |
+| `AWS_REGION`, `AWS_S3_DOCUMENT_BUCKET`, `AWS_SQS_PLAN_QUEUE_URL`, `AWS_SQS_DOCUMENT_QUEUE_URL` | Required in production; the worker idles (with a warning) if a queue URL is unset, which is expected in local development. When the queue URLs are blank, the API runs plan/document generation in-process instead of dispatching to the worker. |
 | `COGNITO_*` | Production identity provider config; not required in development. |
+| `OPENAI_API_KEY`, `OPENAI_MODEL` | AI plan generation. The key is required in production (set it in both `api.env` and `worker.env`); in development a missing key makes generation fail with a clear message rather than blocking startup. Model defaults to `gpt-5.6-terra`. |
+| `DOCUMENT_STORAGE_PATH` | Local directory for rendered plan PDFs when no S3 bucket is configured (default `.data/documents`). |
 
 Configuration is loaded and validated exactly once, at process startup, by
 `packages/config`. Invalid or missing required values cause the process to
@@ -246,9 +259,6 @@ Session Manager, not SSH.
   working sign-in path. A magic-link/OTP email option was considered and
   deliberately deferred in favor of Cognito's native password flow (less
   infrastructure to build and operate for the same v1 scope).
-- **Plan and document generation are placeholders.** `apps/worker`'s job
-  handlers validate their message payloads and log receipt, but do not
-  generate any real content -- no AI-assisted drafting, no PDF rendering.
 - **Station location has a map-based picker; Circle location does not yet.**
   Stations use a Leaflet + OpenStreetMap map (click-to-select a 1km MGRS
   cell, or drop a precise pin) or a geocoded zip/city/county/state search,
@@ -257,8 +267,12 @@ Session Manager, not SSH.
   [ADR 9](docs/decisions/0009-mgrs-location-capture.md)). Radio Circles
   still use a plain free-text area/grid field, since this milestone's scope
   was stations only.
-- **No equipment inventory, plans, nets, or contacts UI yet.** These are
-  visible as "coming in a future milestone" placeholders in the app shell.
+- **No equipment inventory, nets, or contacts UI yet.** These are visible
+  as "coming in a future milestone" placeholders in the app shell. (Plans
+  shipped -- see [ADR 10](docs/decisions/0010-hybrid-ai-plan-generation.md).)
+- **Plan documents are PDF-only.** The `plan_documents` table and job
+  payloads support an `html` format value, but only `pdf` rendering is
+  implemented.
 - Spec section 27 (explicitly out of scope) was not implemented.
 
 ## Next milestone
@@ -274,11 +288,8 @@ The natural next slice of work, building on this foundation:
    Also: build the "find nearby stations" feature on top of the
    `findNearbyStations` groundwork already in place
    (`apps/api/src/modules/stations/nearby.ts`).
-3. Implement real plan generation: assemble a Circle's stations, member
-   roles, and capabilities into a structured plan, persist plan versions
-   (immutable once published), and render a document via the worker
-   (`apps/worker`'s `document.generate` handler) with S3 upload.
-4. Build the Plans, Nets, and Contacts surfaces in `apps/web` that are
-   currently "coming soon" placeholders.
-5. Add equipment inventory to the station detail page.
-6. Add Apple sign-in as a second Cognito federated identity provider.
+3. Build the Nets and Contacts surfaces in `apps/web` that are currently
+   "coming soon" placeholders -- the plan's check-in schedule section is a
+   natural input for scheduled nets.
+4. Add equipment inventory to the station detail page.
+5. Add Apple sign-in as a second Cognito federated identity provider.

@@ -2,19 +2,25 @@ import { Link } from 'react-router-dom';
 import { Badge, Card, CardDescription, CardTitle, EmptyState } from '@readycircle/ui';
 import { useStations } from '../../features/stations/api.js';
 import { useCircles } from '../../features/circles/api.js';
+import { usePlans } from '../../features/plans/api.js';
+import { VersionStatusBadge } from './plans/plan-status.js';
 
 export function DashboardPage() {
   const { data: stationsData, isLoading: stationsLoading } = useStations();
   const { data: circlesData, isLoading: circlesLoading } = useCircles();
+  const { data: plansData, isLoading: plansLoading } = usePlans();
 
   const stations = stationsData?.items ?? [];
   const circles = circlesData?.items ?? [];
+  const plans = plansData?.items ?? [];
 
   const nextAction = stations.length === 0
     ? { label: 'Add your first station', to: '/app/stations/new' }
     : circles.length === 0
       ? { label: 'Create or join a Radio Circle', to: '/app/circles/new' }
-      : { label: 'Review your Circle plan (coming soon)', to: '/app/plans' };
+      : plans[0] === undefined
+        ? { label: 'Generate your first communications plan', to: '/app/plans' }
+        : { label: 'Review your Circle plan', to: `/app/plans/${plans[0].id}` };
 
   return (
     <div className="space-y-8">
@@ -120,8 +126,33 @@ export function DashboardPage() {
         </Card>
 
         <Card>
-          <CardTitle>Plan status</CardTitle>
-          <CardDescription>Generated plans are coming in a future milestone.</CardDescription>
+          <div className="flex items-center justify-between">
+            <CardTitle>Plan status</CardTitle>
+            <Link to="/app/plans" className="text-sm font-medium text-navy-700 hover:text-navy-800">
+              View all
+            </Link>
+          </div>
+          {plansLoading ? (
+            <p className="mt-4 text-sm text-ink/50">Loading…</p>
+          ) : plans.length === 0 ? (
+            <CardDescription>
+              No plans yet. Open one of your Radio Circles and choose &quot;Generate plan&quot;.
+            </CardDescription>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {plans.slice(0, 3).map((plan) => (
+                <li key={plan.id}>
+                  <Link
+                    to={`/app/plans/${plan.id}`}
+                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-navy-300 hover:bg-navy-50"
+                  >
+                    <span className="text-sm font-medium text-ink">{plan.title}</span>
+                    <VersionStatusBadge version={plan.latestVersion} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
         <Card>

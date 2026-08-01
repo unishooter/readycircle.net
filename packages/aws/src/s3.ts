@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 export interface S3ClientOptions {
   region: string;
@@ -30,4 +30,27 @@ export async function putDocument(client: S3Client, input: PutDocumentInput): Pr
       ContentType: input.contentType,
     }),
   );
+}
+
+export interface GetDocumentResult {
+  body: Uint8Array;
+  contentType: string;
+}
+
+/** Returns null when the object does not exist, throws for other failures. */
+export async function getDocument(
+  client: S3Client,
+  input: { bucket: string; key: string },
+): Promise<GetDocumentResult | null> {
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: input.bucket, Key: input.key }));
+    const body = await result.Body?.transformToByteArray();
+    if (!body) return null;
+    return { body, contentType: result.ContentType ?? 'application/octet-stream' };
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'NoSuchKey' || error.name === 'NotFound')) {
+      return null;
+    }
+    throw error;
+  }
 }

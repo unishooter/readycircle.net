@@ -156,5 +156,7 @@ export const auditActionSchema = z.enum([
   'member.added',
   'member.role_changed',
   'member.removed',
+  'plan.generation_requested',
+  'plan.published',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;

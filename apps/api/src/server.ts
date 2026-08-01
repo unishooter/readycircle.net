@@ -24,13 +24,20 @@ import { stationRoutes } from './modules/stations/routes.js';
 import { circleRoutes } from './modules/circles/routes.js';
 import { membershipRoutes } from './modules/memberships/routes.js';
 import { geocodingRoutes } from './modules/geocoding/routes.js';
+import { planRoutes } from './modules/plans/routes.js';
+import { createJobDispatcher, type JobDispatcher } from './modules/plans/dispatcher.js';
+import { createDocumentStore, type DocumentStore } from '@readycircle/plan-engine';
 
 export interface BuildServerOptions {
   config: AppConfig;
   db: Database;
+  /** Test seam: replaces the SQS / in-process plan job dispatcher. */
+  planJobDispatcher?: JobDispatcher;
+  /** Test seam: replaces the S3 / local-disk plan document store. */
+  planDocumentStore?: DocumentStore;
 }
 
-export function buildServer({ config, db }: BuildServerOptions): FastifyInstance {
+export function buildServer({ config, db, planJobDispatcher, planDocumentStore }: BuildServerOptions): FastifyInstance {
   const app = Fastify({
     logger: buildPinoOptions({ level: config.logLevel, appEnv: config.appEnv, module: 'api' }),
     disableRequestLogging: false,
@@ -55,6 +62,16 @@ export function buildServer({ config, db }: BuildServerOptions): FastifyInstance
   app.decorate('config', config);
   app.decorate('sessionManager', new SessionManager(db, config.sessionSecret));
   app.decorate('auditService', new AuditService(db));
+  app.decorate('planJobDispatcher', planJobDispatcher ?? createJobDispatcher(config, db, app.log));
+  app.decorate(
+    'planDocumentStore',
+    planDocumentStore ??
+      createDocumentStore({
+        bucket: config.aws.documentBucket,
+        region: config.aws.region,
+        storagePath: config.documents.storagePath,
+      }),
+  );
 
   registerErrorHandler(app);
 
@@ -85,6 +102,7 @@ export function buildServer({ config, db }: BuildServerOptions): FastifyInstance
   app.register(circleRoutes, { prefix: '/api/v1' });
   app.register(membershipRoutes, { prefix: '/api/v1' });
   app.register(geocodingRoutes, { prefix: '/api/v1' });
+  app.register(planRoutes, { prefix: '/api/v1' });
 
   return app;
 }
