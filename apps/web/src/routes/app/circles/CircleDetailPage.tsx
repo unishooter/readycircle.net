@@ -29,7 +29,7 @@ export function CircleDetailPage() {
           <p className="mt-2 text-sm text-ink/60">
             This Circle doesn&apos;t exist, or you&apos;re not a member.
           </p>
-          <Link to="/app/circles" className="mt-4 inline-block text-sm font-medium text-teal-700">
+          <Link to="/app/circles" className="mt-4 inline-block text-sm font-medium text-navy-700">
             &larr; Back to My Radio Circles
           </Link>
         </Card>
@@ -55,7 +55,7 @@ export function CircleDetailPage() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold text-ink">{circle.name}</h1>
-          <Badge tone={circle.status === 'active' ? 'teal' : 'neutral'}>{circle.status}</Badge>
+          <Badge tone={circle.status === 'active' ? 'primary' : 'neutral'}>{circle.status}</Badge>
         </div>
         <p className="mt-1 text-sm text-ink/60">{circle.circleTypeLabel} &middot; {circle.area.areaLabel}</p>
       </div>
@@ -125,7 +125,7 @@ export function CircleDetailPage() {
                       <option value="coordinator">Coordinator</option>
                     </select>
                   ) : (
-                    <Badge tone={member.role === 'coordinator' ? 'teal' : 'neutral'}>{member.role}</Badge>
+                    <Badge tone={member.role === 'coordinator' ? 'primary' : 'neutral'}>{member.role}</Badge>
                   )}
                   {isCoordinator ? (
                     <Button

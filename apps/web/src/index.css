@@ -12,6 +12,6 @@
   }
 
   :focus-visible {
-    outline-color: theme('colors.teal.700');
+    outline-color: theme('colors.navy.700');
   }
 }

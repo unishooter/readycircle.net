@@ -16,8 +16,8 @@ export function Stepper({ steps, currentStep }: StepperProps) {
             <span
               className={cx(
                 'flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold',
-                isComplete && 'bg-teal-700 text-white',
-                isCurrent && !isComplete && 'border-2 border-teal-700 text-teal-800',
+                isComplete && 'bg-navy-700 text-white',
+                isCurrent && !isComplete && 'border-2 border-navy-700 text-navy-800',
                 !isComplete && !isCurrent && 'border border-black/15 text-ink/50',
               )}
               aria-current={isCurrent ? 'step' : undefined}

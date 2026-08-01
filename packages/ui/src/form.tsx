@@ -4,7 +4,7 @@ import { cx } from './cx.js';
 
 const fieldBaseStyles =
   'w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-ink shadow-sm ' +
-  'focus:border-teal-600 focus:outline focus:outline-2 focus:outline-teal-600/40 ' +
+  'focus:border-navy-600 focus:outline focus:outline-2 focus:outline-navy-600/40 ' +
   'disabled:cursor-not-allowed disabled:bg-black/5';
 
 export interface FieldProps {
@@ -21,7 +21,7 @@ export function Field({ label, hint, error, required, children }: FieldProps) {
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium text-ink">
         {label}
-        {required ? <span aria-hidden="true" className="text-teal-700"> *</span> : null}
+        {required ? <span aria-hidden="true" className="text-navy-700"> *</span> : null}
       </label>
       {children(id)}
       {hint && !error ? <p className="text-xs text-ink/60">{hint}</p> : null}
@@ -69,14 +69,14 @@ export function CheckboxOption({ label, description, className, ...props }: Chec
       htmlFor={id}
       className={cx(
         'flex cursor-pointer items-start gap-3 rounded-lg border border-black/10 bg-white p-3',
-        'has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50',
+        'has-[:checked]:border-navy-600 has-[:checked]:bg-navy-50',
         className,
       )}
     >
       <input
         id={id}
         type="checkbox"
-        className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-black/20 text-teal-700 focus:ring-teal-600"
+        className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-black/20 text-navy-700 focus:ring-navy-600"
         {...props}
       />
       <span>
@@ -99,14 +99,14 @@ export function RadioOption({ label, description, className, ...props }: RadioOp
       htmlFor={id}
       className={cx(
         'flex cursor-pointer items-start gap-3 rounded-lg border border-black/10 bg-white p-3',
-        'has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50',
+        'has-[:checked]:border-navy-600 has-[:checked]:bg-navy-50',
         className,
       )}
     >
       <input
         id={id}
         type="radio"
-        className="mt-0.5 h-4 w-4 flex-shrink-0 border-black/20 text-teal-700 focus:ring-teal-600"
+        className="mt-0.5 h-4 w-4 flex-shrink-0 border-black/20 text-navy-700 focus:ring-navy-600"
         {...props}
       />
       <span>

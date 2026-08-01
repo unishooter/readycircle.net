@@ -17,7 +17,7 @@ export function PlanOutputs() {
       <ul className="mx-auto mt-10 grid max-w-2xl gap-4 sm:grid-cols-2">
         {outputs.map((item) => (
           <li key={item} className="flex items-start gap-3 rounded-lg border border-black/5 bg-white p-4 text-sm text-ink/80 shadow-soft">
-            <span className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full bg-teal-600" aria-hidden="true" />
+            <span className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full bg-navy-600" aria-hidden="true" />
             {item}
           </li>
         ))}

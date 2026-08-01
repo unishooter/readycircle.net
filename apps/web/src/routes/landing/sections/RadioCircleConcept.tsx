@@ -28,7 +28,7 @@ export function RadioCircleConcept() {
             key={level.name}
             className={`p-6 ${index > 0 ? 'border-t border-black/5 sm:border-l sm:border-t-0' : ''}`}
           >
-            <span className="text-xs font-semibold uppercase tracking-wide text-teal-700">
+            <span className="text-xs font-semibold uppercase tracking-wide text-navy-700">
               Level {index + 1}
             </span>
             <h3 className="mt-2 text-lg font-semibold text-ink">{level.name}</h3>

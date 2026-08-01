@@ -18,7 +18,7 @@ export function Section({ eyebrow, title, description, className, children, ...p
         {(eyebrow || title || description) && (
           <div className="mx-auto max-w-2xl text-center">
             {eyebrow ? (
-              <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">{eyebrow}</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-navy-700">{eyebrow}</p>
             ) : null}
             {title ? <h2 className="mt-2 text-2xl font-semibold text-ink sm:text-3xl">{title}</h2> : null}
             {description ? <p className="mt-4 text-base text-ink/70">{description}</p> : null}

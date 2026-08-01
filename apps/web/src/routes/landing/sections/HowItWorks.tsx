@@ -34,7 +34,7 @@ export function HowItWorks() {
       <ol className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((item) => (
           <li key={item.step} className="rounded-xl border border-black/5 bg-white p-6 shadow-soft">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-bold text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-700 text-sm font-bold text-white">
               {item.step}
             </span>
             <h3 className="mt-4 text-base font-semibold text-ink">{item.title}</h3>

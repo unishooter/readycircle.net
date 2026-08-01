@@ -1,11 +1,11 @@
 import type { HTMLAttributes } from 'react';
 import { cx } from './cx.js';
 
-export type BadgeTone = 'neutral' | 'teal' | 'amber' | 'red';
+export type BadgeTone = 'neutral' | 'primary' | 'amber' | 'red';
 
 const toneStyles: Record<BadgeTone, string> = {
   neutral: 'bg-black/5 text-ink/80',
-  teal: 'bg-teal-100 text-teal-800',
+  primary: 'bg-navy-100 text-navy-800',
   amber: 'bg-amber-100 text-amber-800',
   red: 'bg-red-100 text-red-800',
 };

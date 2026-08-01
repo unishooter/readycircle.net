@@ -26,7 +26,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           className={({ isActive }) =>
             cx(
               'flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              isActive ? 'bg-teal-100 text-teal-800' : 'text-ink/70 hover:bg-black/5 hover:text-ink',
+              isActive ? 'bg-navy-100 text-navy-800' : 'text-ink/70 hover:bg-black/5 hover:text-ink',
             )
           }
         >
@@ -69,7 +69,7 @@ export function AppShell() {
       <div className="flex min-h-screen">
         <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-black/5 bg-white py-6 md:flex">
           <a href="/" className="mb-6 flex items-center gap-2 px-4 font-semibold text-ink">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-sm font-bold text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-700 text-sm font-bold text-white">
               RC
             </span>
             ReadyCircle

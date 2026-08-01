@@ -23,13 +23,13 @@ export function DashboardPage() {
         <p className="mt-1 text-sm text-ink/60">Your stations, Radio Circles, and next steps, all in one place.</p>
       </div>
 
-      <Card className="border-teal-200 bg-teal-50/60">
-        <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Suggested next step</p>
+      <Card className="border-navy-200 bg-navy-50/60">
+        <p className="text-xs font-semibold uppercase tracking-wide text-navy-700">Suggested next step</p>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <p className="text-base font-medium text-ink">{nextAction.label}</p>
           <Link
             to={nextAction.to}
-            className="inline-flex items-center justify-center rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+            className="inline-flex items-center justify-center rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800"
           >
             Go &rarr;
           </Link>
@@ -40,7 +40,7 @@ export function DashboardPage() {
         <Card>
           <div className="flex items-center justify-between">
             <CardTitle>My Stations</CardTitle>
-            <Link to="/app/stations" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+            <Link to="/app/stations" className="text-sm font-medium text-navy-700 hover:text-navy-800">
               View all
             </Link>
           </div>
@@ -52,7 +52,7 @@ export function DashboardPage() {
                 title="No stations yet"
                 description="Add your radio setup to start building a Radio Circle."
                 action={
-                  <Link to="/app/stations/new" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+                  <Link to="/app/stations/new" className="text-sm font-medium text-navy-700 hover:text-navy-800">
                     Add a station &rarr;
                   </Link>
                 }
@@ -64,10 +64,10 @@ export function DashboardPage() {
                 <li key={station.id}>
                   <Link
                     to={`/app/stations/${station.id}`}
-                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-teal-300 hover:bg-teal-50"
+                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-navy-300 hover:bg-navy-50"
                   >
                     <span className="text-sm font-medium text-ink">{station.name}</span>
-                    <Badge tone={station.status === 'active' ? 'teal' : 'neutral'}>{station.status}</Badge>
+                    <Badge tone={station.status === 'active' ? 'primary' : 'neutral'}>{station.status}</Badge>
                   </Link>
                 </li>
               ))}
@@ -78,7 +78,7 @@ export function DashboardPage() {
         <Card>
           <div className="flex items-center justify-between">
             <CardTitle>My Radio Circles</CardTitle>
-            <Link to="/app/circles" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+            <Link to="/app/circles" className="text-sm font-medium text-navy-700 hover:text-navy-800">
               View all
             </Link>
           </div>
@@ -95,7 +95,7 @@ export function DashboardPage() {
                 }
                 action={
                   stations.length > 0 ? (
-                    <Link to="/app/circles/new" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+                    <Link to="/app/circles/new" className="text-sm font-medium text-navy-700 hover:text-navy-800">
                       Create a Circle &rarr;
                     </Link>
                   ) : undefined
@@ -108,7 +108,7 @@ export function DashboardPage() {
                 <li key={circle.id}>
                   <Link
                     to={`/app/circles/${circle.id}`}
-                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-teal-300 hover:bg-teal-50"
+                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-navy-300 hover:bg-navy-50"
                   >
                     <span className="text-sm font-medium text-ink">{circle.name}</span>
                     <Badge tone="neutral">{circle.memberCount} member{circle.memberCount === 1 ? '' : 's'}</Badge>

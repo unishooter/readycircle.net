@@ -6,17 +6,36 @@ export default {
       colors: {
         ink: '#1c2523',
         paper: '#faf7f0',
-        teal: {
-          50: '#eef7f6',
-          100: '#d7ece9',
-          200: '#b0d9d3',
-          300: '#82c0b7',
-          400: '#57a599',
-          500: '#3a8a7d',
-          600: '#2c6f65',
-          700: '#245852',
-          800: '#1f4642',
-          900: '#1b3a37',
+        // Primary brand color, from the ReadyCircle style guide's "Blue
+        // theme palette" (#1F2D3D, #4C6B8A, #7FA2C4, #9AA6B2, #D6DCE3).
+        // Intermediate shades are interpolated to fill out a full
+        // Tailwind-style ramp.
+        navy: {
+          50: '#f1f4f7',
+          100: '#d6dce3',
+          200: '#c3ccd6',
+          300: '#9aa6b2',
+          400: '#7fa2c4',
+          500: '#6889aa',
+          600: '#4c6b8a',
+          700: '#33465c',
+          800: '#1f2d3d',
+          900: '#141c26',
+        },
+        // Secondary accent color, from the style guide's "Orange theme
+        // palette" (#D9772A, #E19B56, #F2C9A4, #F4D9BC, #F7E9DA) -- the
+        // color used for the logo's ".net" text and icon accent dot.
+        ember: {
+          50: '#fcf3ea',
+          100: '#f7e9da',
+          200: '#f4d9bc',
+          300: '#f2c9a4',
+          400: '#ecb27e',
+          500: '#e19b56',
+          600: '#d9772a',
+          700: '#b8621f',
+          800: '#935017',
+          900: '#6e3c11',
         },
       },
       fontFamily: {

@@ -25,7 +25,7 @@ export function Privacy() {
     >
       <div className="mt-12 grid gap-6 sm:grid-cols-3">
         {principles.map((item) => (
-          <div key={item.title} className="rounded-xl border border-teal-100 bg-teal-50/60 p-6">
+          <div key={item.title} className="rounded-xl border border-navy-100 bg-navy-50/60 p-6">
             <h3 className="text-base font-semibold text-ink">{item.title}</h3>
             <p className="mt-2 text-sm text-ink/70">{item.body}</p>
           </div>

@@ -90,13 +90,13 @@ function DevSignIn() {
                   type="button"
                   onClick={() => void loginAsExisting(user.id)}
                   disabled={login.isPending}
-                  className="flex w-full items-center justify-between rounded-lg border border-black/10 px-4 py-3 text-left hover:border-teal-600 hover:bg-teal-50 disabled:opacity-50"
+                  className="flex w-full items-center justify-between rounded-lg border border-black/10 px-4 py-3 text-left hover:border-navy-600 hover:bg-navy-50 disabled:opacity-50"
                 >
                   <span>
                     <span className="block text-sm font-medium text-ink">{user.displayName}</span>
                     {user.persona ? <span className="block text-xs text-ink/50">{user.persona}</span> : null}
                   </span>
-                  <span className="text-sm text-teal-700">Continue &rarr;</span>
+                  <span className="text-sm text-navy-700">Continue &rarr;</span>
                 </button>
               </li>
             ))}
@@ -163,7 +163,7 @@ export function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <a href="/" className="inline-flex items-center gap-2 font-semibold text-ink">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-sm font-bold text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-700 text-sm font-bold text-white">
               RC
             </span>
             ReadyCircle

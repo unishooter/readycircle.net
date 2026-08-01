@@ -25,7 +25,7 @@ export function StationDetailPage() {
           <p className="mt-2 text-sm text-ink/60">
             This station doesn&apos;t exist, or you don&apos;t have permission to view it.
           </p>
-          <Link to="/app/stations" className="mt-4 inline-block text-sm font-medium text-teal-700">
+          <Link to="/app/stations" className="mt-4 inline-block text-sm font-medium text-navy-700">
             &larr; Back to My Stations
           </Link>
         </Card>
@@ -46,7 +46,7 @@ export function StationDetailPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-ink">{station.name}</h1>
-            <Badge tone={station.status === 'active' ? 'teal' : 'neutral'}>{station.status}</Badge>
+            <Badge tone={station.status === 'active' ? 'primary' : 'neutral'}>{station.status}</Badge>
           </div>
           <p className="mt-1 text-sm text-ink/60">{STATION_TYPE_LABELS[station.stationType]}</p>
         </div>
@@ -89,7 +89,7 @@ export function StationDetailPage() {
               <p className="text-sm text-ink/50">None listed</p>
             ) : (
               station.capabilities.map((capability) => (
-                <Badge key={capability} tone="teal">
+                <Badge key={capability} tone="primary">
                   {RADIO_CAPABILITY_LABELS[capability]}
                 </Badge>
               ))

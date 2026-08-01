@@ -51,7 +51,7 @@ export function CircleWizardPage() {
           </p>
           <Link
             to="/app/stations/new"
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+            className="mt-4 inline-flex items-center justify-center rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800"
           >
             Add a station
           </Link>
@@ -80,12 +80,12 @@ export function CircleWizardPage() {
             {circleTypeSchema.options.map((option) => (
               <label
                 key={option}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/10 bg-white p-3 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/10 bg-white p-3 has-[:checked]:border-navy-600 has-[:checked]:bg-navy-50"
               >
                 <input
                   type="radio"
                   name="circleType"
-                  className="h-4 w-4 border-black/20 text-teal-700 focus:ring-teal-600"
+                  className="h-4 w-4 border-black/20 text-navy-700 focus:ring-navy-600"
                   checked={draft.circleType === option}
                   onChange={() => setDraft({ ...draft, circleType: option })}
                 />
@@ -176,12 +176,12 @@ export function CircleWizardPage() {
             {stations.map((station) => (
               <label
                 key={station.id}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/10 bg-white p-3 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/10 bg-white p-3 has-[:checked]:border-navy-600 has-[:checked]:bg-navy-50"
               >
                 <input
                   type="radio"
                   name="creatorStationId"
-                  className="h-4 w-4 border-black/20 text-teal-700 focus:ring-teal-600"
+                  className="h-4 w-4 border-black/20 text-navy-700 focus:ring-navy-600"
                   checked={draft.creatorStationId === station.id}
                   onChange={() => setDraft({ ...draft, creatorStationId: station.id })}
                 />
