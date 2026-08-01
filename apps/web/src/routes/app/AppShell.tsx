@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Badge, cx } from '@readycircle/ui';
 import { useLogout, useSession } from '../../features/session/api.js';
+import logoHorizontal from '../../assets/readycircle-logo-horizontal.png';
 
 const navItems = [
   { to: '/app', label: 'Dashboard', end: true },
@@ -68,11 +69,8 @@ export function AppShell() {
     <div className="min-h-screen bg-paper">
       <div className="flex min-h-screen">
         <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-black/5 bg-white py-6 md:flex">
-          <a href="/" className="mb-6 flex items-center gap-2 px-4 font-semibold text-ink">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-700 text-sm font-bold text-white">
-              RC
-            </span>
-            ReadyCircle
+          <a href="/" className="mb-6 flex items-center px-4">
+            <img src={logoHorizontal} alt="ReadyCircle.net" className="h-7 w-auto" />
           </a>
           <NavList />
         </aside>

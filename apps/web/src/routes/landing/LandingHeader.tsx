@@ -1,14 +1,12 @@
 import { Link } from 'react-router-dom';
+import logoHorizontal from '../../assets/readycircle-logo-horizontal.png';
 
 export function LandingHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-black/5 bg-paper/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="#top" className="flex items-center gap-2 font-semibold text-ink">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-700 text-sm font-bold text-white">
-            RC
-          </span>
-          ReadyCircle
+        <a href="#top" className="flex items-center">
+          <img src={logoHorizontal} alt="ReadyCircle.net" className="h-8 w-auto" />
         </a>
         <nav className="hidden items-center gap-6 text-sm font-medium text-ink/70 md:flex" aria-label="Primary">
           <a href="#how-it-works" className="hover:text-ink">How it works</a>

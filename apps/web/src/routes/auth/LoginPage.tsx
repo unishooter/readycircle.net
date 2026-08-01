@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Card, Field, TextInput } from '@readycircle/ui';
 import { useDevLogin, useDevUsers, useSession } from '../../features/session/api.js';
+import logoHorizontal from '../../assets/readycircle-logo-horizontal.png';
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   oauth_cancelled: 'Sign-in was cancelled.',
@@ -162,11 +163,8 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-paper px-4 py-12">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <a href="/" className="inline-flex items-center gap-2 font-semibold text-ink">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-700 text-sm font-bold text-white">
-              RC
-            </span>
-            ReadyCircle
+          <a href="/" className="inline-flex items-center">
+            <img src={logoHorizontal} alt="ReadyCircle.net" className="h-9 w-auto" />
           </a>
           <h1 className="mt-4 text-2xl font-semibold text-ink">Sign in</h1>
         </div>
