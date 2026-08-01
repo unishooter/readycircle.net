@@ -14,6 +14,27 @@ import { uuidSchema } from './common.js';
 export const planVersionStatusSchema = z.enum(['generating', 'draft', 'failed', 'published']);
 export type PlanVersionStatus = z.infer<typeof planVersionStatusSchema>;
 
+/**
+ * Progress marker written by the generation pipeline while a version's
+ * status is `generating`, so the polling UI can show which phase is
+ * running rather than an indeterminate spinner.
+ */
+export const planGenerationStageSchema = z.enum(['assembling_context', 'drafting_advisory', 'saving']);
+export type PlanGenerationStage = z.infer<typeof planGenerationStageSchema>;
+
+/** Display order of generation stages (for step indicators). */
+export const PLAN_GENERATION_STAGE_ORDER: PlanGenerationStage[] = [
+  'assembling_context',
+  'drafting_advisory',
+  'saving',
+];
+
+export const PLAN_GENERATION_STAGE_LABELS: Record<PlanGenerationStage, string> = {
+  assembling_context: "Gathering your Circle's roster, capabilities, and locations",
+  drafting_advisory: 'Planning assistant is drafting channels, roles, and check-ins',
+  saving: 'Saving the finished plan sections',
+};
+
 export const planSectionKeySchema = z.enum([
   'overview',
   'roster',
@@ -182,6 +203,8 @@ export const planVersionSummarySchema = z.object({
   planId: uuidSchema,
   versionNumber: z.number().int(),
   status: planVersionStatusSchema,
+  /** Set only while status is `generating`; null before pickup and after completion. */
+  generationStage: planGenerationStageSchema.nullable(),
   errorMessage: z.string().nullable(),
   publishedAt: z.string().nullable(),
   createdAt: z.string(),

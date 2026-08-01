@@ -1,6 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { planSections, planVersions, plans, type Database } from '@readycircle/database';
-import { PLAN_SECTION_ORDER, PLAN_SECTION_TITLES, type PlanSectionKey } from '@readycircle/contracts';
+import {
+  PLAN_SECTION_ORDER,
+  PLAN_SECTION_TITLES,
+  type PlanGenerationStage,
+  type PlanSectionKey,
+} from '@readycircle/contracts';
 import { buildPlanContext } from './context.js';
 import { buildOverviewContent, buildRosterContent } from './sections.js';
 import { validateAdvisoryStationRefs, type AdvisoryProvider } from './advisory.js';
@@ -41,7 +46,14 @@ export async function generatePlanVersion(options: GeneratePlanVersionOptions): 
     return { status: 'skipped', reason: 'plan not found' };
   }
 
+  // Progress markers for the polling UI. Best-effort: stage writes are
+  // cosmetic and must never fail a generation.
+  const setStage = async (stage: PlanGenerationStage) => {
+    await db.update(planVersions).set({ generationStage: stage }).where(eq(planVersions.id, planVersionId));
+  };
+
   try {
+    await setStage('assembling_context');
     const context = await buildPlanContext(db, plan.circleId);
     if (context.members.length === 0) {
       throw new Error('This Circle has no active member stations to plan for.');
@@ -54,6 +66,7 @@ export async function generatePlanVersion(options: GeneratePlanVersionOptions): 
       { planVersionId, circleId: plan.circleId, memberCount: context.members.length },
       'requesting AI advisory sections',
     );
+    await setStage('drafting_advisory');
     const rawAdvisory = await advisoryProvider.generateAdvisory(context);
     const advisory = validateAdvisoryStationRefs(rawAdvisory, context, logger);
 
@@ -66,6 +79,7 @@ export async function generatePlanVersion(options: GeneratePlanVersionOptions): 
       recommendations: advisory.recommendations,
     };
 
+    await setStage('saving');
     await db.transaction(async (tx) => {
       // Idempotent on retry-after-failure: replace any partial content.
       await tx.delete(planSections).where(eq(planSections.planVersionId, planVersionId));
@@ -80,7 +94,7 @@ export async function generatePlanVersion(options: GeneratePlanVersionOptions): 
       );
       await tx
         .update(planVersions)
-        .set({ status: 'draft', contextSnapshot: context, errorMessage: null })
+        .set({ status: 'draft', contextSnapshot: context, errorMessage: null, generationStage: null })
         .where(eq(planVersions.id, planVersionId));
     });
 
@@ -91,7 +105,7 @@ export async function generatePlanVersion(options: GeneratePlanVersionOptions): 
     logger.error({ planVersionId, err: error }, 'plan generation failed');
     await db
       .update(planVersions)
-      .set({ status: 'failed', errorMessage: message.slice(0, 1000) })
+      .set({ status: 'failed', errorMessage: message.slice(0, 1000), generationStage: null })
       .where(eq(planVersions.id, planVersionId));
     return { status: 'failed', error: message };
   }

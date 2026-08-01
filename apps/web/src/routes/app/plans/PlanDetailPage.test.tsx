@@ -12,6 +12,7 @@ function makeVersionSummary(overrides: Partial<PlanVersionSummary> = {}): PlanVe
     planId: PLAN_ID,
     versionNumber: 1,
     status: 'draft',
+    generationStage: null,
     errorMessage: null,
     publishedAt: null,
     createdAt: '2026-08-01T00:00:00.000Z',
@@ -67,6 +68,20 @@ describe('PlanDetailPage', () => {
     versionResult = { data: { ...version, sections: [] } };
     renderPage();
     expect(screen.getByText(/generating your plan/i)).toBeInTheDocument();
+    // All pipeline steps are listed so the user can see what is happening.
+    expect(screen.getByText(/gathering your circle/i)).toBeInTheDocument();
+    expect(screen.getByText(/drafting channels, roles/i)).toBeInTheDocument();
+    expect(screen.getByText(/saving the finished plan/i)).toBeInTheDocument();
+  });
+
+  it('marks earlier steps done once the generation stage advances', () => {
+    const version = makeVersionSummary({ status: 'generating', generationStage: 'drafting_advisory' });
+    planResult = { data: makePlan([version]), isLoading: false, error: null };
+    versionResult = { data: { ...version, sections: [] } };
+    renderPage();
+    const items = screen.getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('✓');
+    expect(items[1]).not.toHaveTextContent('✓');
   });
 
   it('shows the failure reason and a retry button for coordinators', () => {

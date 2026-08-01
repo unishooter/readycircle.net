@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import {
+  PLAN_GENERATION_STAGE_LABELS,
+  PLAN_GENERATION_STAGE_ORDER,
+  type PlanGenerationStage,
+} from '@readycircle/contracts';
 import { Button, Card, CardTitle, cx } from '@readycircle/ui';
 import { usePlan, usePlanVersion, usePublishVersion, useRegeneratePlan, planDocumentUrl } from '../../../features/plans/api.js';
 import { PlanSectionView } from './PlanSections.js';
@@ -87,11 +92,13 @@ export function PlanDetailPage() {
 
       {version?.status === 'generating' ? (
         <Card>
-          <CardTitle>Generating your plan…</CardTitle>
-          <p className="mt-2 text-sm text-ink/60">
-            ReadyCircle is assembling your Circle&apos;s roster and asking the planning assistant for channel,
-            role, and check-in recommendations. This usually takes under a minute; the page updates
-            automatically.
+          <div className="flex items-center gap-3">
+            <Spinner className="h-5 w-5 text-navy-700" />
+            <CardTitle>Generating your plan…</CardTitle>
+          </div>
+          <GenerationProgress stage={version.generationStage} />
+          <p className="mt-4 text-xs text-ink/50">
+            This usually takes under a minute. The page updates automatically -- no need to refresh.
           </p>
         </Card>
       ) : null}
@@ -171,9 +178,61 @@ export function PlanDetailPage() {
   );
 }
 
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cx('animate-spin', className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
+
+/**
+ * Live step checklist while a version generates. The stage comes from the
+ * polled version row; before the job is picked up it is null, in which case
+ * the first step is shown as active (the pickup gap is normally seconds).
+ */
+function GenerationProgress({ stage }: { stage: PlanGenerationStage | null }) {
+  const currentIndex = stage ? PLAN_GENERATION_STAGE_ORDER.indexOf(stage) : 0;
+
+  return (
+    <ol className="mt-4 space-y-2.5">
+      {PLAN_GENERATION_STAGE_ORDER.map((step, index) => {
+        const state = index < currentIndex ? 'done' : index === currentIndex ? 'active' : 'upcoming';
+        return (
+          <li key={step} className="flex items-center gap-2.5 text-sm">
+            {state === 'done' ? (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-navy-700 text-[10px] font-bold text-white">
+                ✓
+              </span>
+            ) : state === 'active' ? (
+              <Spinner className="h-4 w-4 text-navy-700" />
+            ) : (
+              <span className="h-4 w-4 rounded-full border-2 border-black/15" />
+            )}
+            <span className={cx(state === 'upcoming' ? 'text-ink/40' : 'text-ink/80', state === 'active' && 'font-medium')}>
+              {PLAN_GENERATION_STAGE_LABELS[step]}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function DocumentAction({ planId, version }: { planId: string; version: { id: string; document: { status: string; errorMessage: string | null } | null } }) {
   if (!version.document || version.document.status === 'pending') {
-    return <span className="text-xs text-ink/60">Preparing PDF…</span>;
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-ink/60">
+        <Spinner className="h-3.5 w-3.5 text-ink/50" />
+        Preparing PDF…
+      </span>
+    );
   }
   if (version.document.status === 'failed') {
     return (

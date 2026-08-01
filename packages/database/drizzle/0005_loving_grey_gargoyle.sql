@@ -1,0 +1,1 @@
+ALTER TABLE "plan_versions" ADD COLUMN "generation_stage" text;

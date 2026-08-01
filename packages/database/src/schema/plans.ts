@@ -42,6 +42,13 @@ export const planVersions = pgTable('plan_versions', {
    * plan can always be traced back to the exact inputs that produced it.
    */
   contextSnapshot: jsonb('context_snapshot'),
+  /**
+   * Progress marker while status = 'generating':
+   * 'assembling_context' | 'drafting_advisory' | 'saving'. Written by the
+   * generation pipeline so the polling UI can show real activity instead of
+   * an indeterminate "generating" state; cleared when generation finishes.
+   */
+  generationStage: text('generation_stage'),
   /** Human-readable failure reason when status = 'failed'. */
   errorMessage: text('error_message'),
   publishedAt: timestamp('published_at', { withTimezone: true }),
