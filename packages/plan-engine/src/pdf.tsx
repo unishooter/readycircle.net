@@ -1,4 +1,4 @@
-import { Document, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer';
+import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer';
 import {
   channelPlanContentSchema,
   checkInScheduleContentSchema,
@@ -7,6 +7,7 @@ import {
   recommendationsContentSchema,
   roleAssignmentsContentSchema,
 } from '@readycircle/contracts';
+import { READYCIRCLE_LOGO_PNG_DATA_URI } from './logo.js';
 
 /**
  * Renders a plan version to a printable PDF via @react-pdf/renderer --
@@ -38,6 +39,8 @@ const INK_MUTED = '#5b6673';
 
 const styles = StyleSheet.create({
   page: { paddingTop: 42, paddingBottom: 54, paddingHorizontal: 48, fontSize: 10, color: NAVY_900, fontFamily: 'Helvetica' },
+  // Source PNG is 822x247; only the width is set so the aspect ratio holds.
+  headerLogo: { width: 150, marginBottom: 12 },
   headerTitle: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: NAVY_900 },
   headerMeta: { fontSize: 10, color: INK_MUTED, marginTop: 4 },
   headerRule: { borderBottomWidth: 2, borderBottomColor: EMBER_600, marginTop: 10, marginBottom: 16 },
@@ -233,6 +236,7 @@ export async function renderPlanPdf(input: RenderPlanPdfInput): Promise<Uint8Arr
     <Document title={input.planTitle} author="ReadyCircle">
       <Page size="LETTER" style={styles.page}>
         <View>
+          <Image style={styles.headerLogo} src={READYCIRCLE_LOGO_PNG_DATA_URI} />
           <Text style={styles.headerTitle}>{input.planTitle}</Text>
           <Text style={styles.headerMeta}>
             {`${input.circleName} · Version ${input.versionNumber}${
