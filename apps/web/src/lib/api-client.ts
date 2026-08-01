@@ -19,10 +19,14 @@ export class ApiClientError extends Error {
  * the browser never needs to know the API's real host or port.
  */
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Only declare a JSON content type when there is actually a body:
+  // Fastify rejects bodyless requests that claim `application/json`
+  // (FST_ERR_CTP_EMPTY_JSON_BODY), which broke POSTs like publish/regenerate.
+  const contentType: Record<string, string> = init.body != null ? { 'Content-Type': 'application/json' } : {};
   const response = await fetch(path, {
     ...init,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...init.headers },
+    headers: { ...contentType, ...init.headers },
   });
 
   if (!response.ok) {
