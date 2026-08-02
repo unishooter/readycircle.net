@@ -35,7 +35,7 @@ export function NetsListPage() {
           description={
             circles.length === 0
               ? 'Nets belong to a Radio Circle. Create or join a Circle first.'
-              : 'Open one of your Radio Circles and choose "Schedule a net" -- or create one from a published plan\u2019s check-in schedule.'
+              : 'Open one of your Radio Circles and choose "Manually schedule a net" -- or create one from a published plan\u2019s check-in schedule.'
           }
           action={
             <Link to="/app/circles">

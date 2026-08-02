@@ -187,19 +187,20 @@ export function CircleDetailPage() {
           )}
           {isCoordinator ? (
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Link to={`/app/circles/${circle.id}/nets/new`}>
-                <Button variant="secondary" size="sm">
-                  Schedule a net
-                </Button>
-              </Link>
               {publishedPlan?.latestVersion ? (
                 <Link
                   to={`/app/circles/${circle.id}/nets/new?planId=${publishedPlan.id}&versionId=${publishedPlan.latestVersion.id}`}
-                  className="text-xs font-medium text-navy-700 hover:underline"
                 >
-                  Create from published plan
+                  <Button variant="secondary" size="sm">
+                    Create from published plan
+                  </Button>
                 </Link>
               ) : null}
+              <Link to={`/app/circles/${circle.id}/nets/new`}>
+                <Button variant="secondary" size="sm">
+                  Manually schedule a net
+                </Button>
+              </Link>
             </div>
           ) : null}
         </Card>

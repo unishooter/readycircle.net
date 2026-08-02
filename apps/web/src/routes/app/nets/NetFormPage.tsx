@@ -7,6 +7,12 @@ import { usePlanVersion } from '../../../features/plans/api.js';
 import { useCircle } from '../../../features/circles/api.js';
 import { prefillFromPlanVersion } from '../../../features/nets/plan-prefill.js';
 
+/**
+ * Valid IANA timezone names from the runtime itself, so the select can
+ * never produce a value the server-side Intl validation would reject.
+ */
+const TIME_ZONES: string[] = Intl.supportedValuesOf('timeZone');
+
 interface NetDraft {
   name: string;
   description: string;
@@ -303,9 +309,19 @@ function NetForm({
               />
             )}
           </Field>
-          <Field label="Timezone" hint="IANA name, e.g. America/Chicago." required>
+          <Field label="Timezone" hint="Defaults to your device's timezone." required>
             {(id) => (
-              <TextInput id={id} value={draft.timezone} onChange={(event) => patch({ timezone: event.target.value })} />
+              <Select id={id} value={draft.timezone} onChange={(event) => patch({ timezone: event.target.value })}>
+                {/* Keep a stored value selectable even if this runtime doesn't list it. */}
+                {!TIME_ZONES.includes(draft.timezone) && draft.timezone ? (
+                  <option value={draft.timezone}>{draft.timezone}</option>
+                ) : null}
+                {TIME_ZONES.map((zone) => (
+                  <option key={zone} value={zone}>
+                    {zone}
+                  </option>
+                ))}
+              </Select>
             )}
           </Field>
           <Field label="Duration (minutes)" required>
