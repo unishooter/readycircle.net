@@ -239,5 +239,7 @@ export const auditActionSchema = z.enum([
   'admin.granted',
   'admin.revoked',
   'settings.updated',
+  'contact.logged',
+  'contact.deleted',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;

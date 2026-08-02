@@ -11,7 +11,9 @@ import {
   STATION_VISIBILITY_LABELS,
 } from '@readycircle/contracts';
 import { Badge, Button, Card, CardTitle } from '@readycircle/ui';
+import { CONNECTIVITY_PATH_TYPE_LABELS } from '@readycircle/contracts';
 import { useArchiveStation, useStation } from '../../../features/stations/api.js';
+import { useStationContacts } from '../../../features/contacts/api.js';
 
 export function StationDetailPage() {
   const { stationId } = useParams<{ stationId: string }>();
@@ -191,7 +193,46 @@ export function StationDetailPage() {
           <CardTitle>Equipment</CardTitle>
           <p className="mt-3 text-sm text-ink/50">Equipment inventory is coming in a future milestone.</p>
         </Card>
+
+        {station.isOwner ? <StationContactsCard stationId={station.id} /> : null}
       </div>
     </div>
+  );
+}
+
+/** Read-only: full contact management happens from the Circle or the top-level Contacts page. */
+function StationContactsCard({ stationId }: { stationId: string }) {
+  const { data, isLoading } = useStationContacts(stationId);
+  const contacts = data?.items ?? [];
+  const recent = contacts.slice(0, 5);
+
+  return (
+    <Card>
+      <CardTitle>Contacts</CardTitle>
+      {isLoading ? (
+        <p className="mt-3 text-sm text-ink/50">Loading…</p>
+      ) : recent.length === 0 ? (
+        <p className="mt-3 text-sm text-ink/50">
+          No contacts logged yet. Log one from a shared Circle&apos;s page.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm">
+          {recent.map((contact) => (
+            <li key={contact.id} className="flex items-center justify-between gap-2">
+              <span className="truncate text-ink/80">
+                {contact.stationId === stationId ? contact.counterpartyStationName : contact.stationName}
+              </span>
+              <span className="shrink-0 text-xs text-ink/50">
+                {new Date(contact.occurredAt).toLocaleDateString()} &middot;{' '}
+                {CONNECTIVITY_PATH_TYPE_LABELS[contact.mode]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link to="/app/contacts" className="mt-3 inline-block text-xs font-medium text-navy-700">
+        View all contacts &rarr;
+      </Link>
+    </Card>
   );
 }

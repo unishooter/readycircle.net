@@ -1,0 +1,186 @@
+import { useState, type FormEvent } from 'react';
+import { CONNECTIVITY_PATH_TYPE_LABELS, type ContactMode, type LogContactInput } from '@readycircle/contracts';
+import { Button, Field, Select, TextArea, TextInput } from '@readycircle/ui';
+import { useCircleMembers } from '../circles/api.js';
+import { useSession } from '../session/api.js';
+import { useLogContact } from './api.js';
+
+export interface LogContactFormProps {
+  circleId: string;
+  onLogged?: () => void;
+  onCancel?: () => void;
+}
+
+const MODES: ContactMode[] = ['simplex', 'repeater', 'satellite', 'mesh'];
+
+/** `datetime-local` wants "YYYY-MM-DDTHH:mm" in the viewer's local time, no timezone suffix. */
+function nowLocalInputValue(): string {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  const offsetAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return offsetAdjusted.toISOString().slice(0, 16);
+}
+
+/**
+ * Logging a contact is one-sided and self-declared: the acting user picks
+ * one of their own stations in this Circle, plus any other active member
+ * station, and the entry stands as the record (see ADR on the contact log).
+ */
+export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormProps) {
+  const { data: session } = useSession();
+  const { data: membersData } = useCircleMembers(circleId);
+  const logContact = useLogContact(circleId);
+
+  const members = membersData?.items ?? [];
+  const myStations = members.filter((member) => member.userId === session?.user?.id);
+
+  const [stationId, setStationId] = useState('');
+  const [counterpartyStationId, setCounterpartyStationId] = useState('');
+  const [occurredAt, setOccurredAt] = useState(nowLocalInputValue());
+  const [mode, setMode] = useState<ContactMode>('simplex');
+  const [channel, setChannel] = useState('');
+  const [signalRating, setSignalRating] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const counterpartyOptions = members.filter((member) => member.stationId !== stationId);
+  const canSubmit = Boolean(stationId) && Boolean(counterpartyStationId) && Boolean(occurredAt);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!canSubmit) return;
+    const input: LogContactInput = {
+      stationId,
+      counterpartyStationId,
+      occurredAt: new Date(occurredAt).toISOString(),
+      mode,
+      ...(channel.trim() ? { channel: channel.trim() } : {}),
+      ...(signalRating ? { signalRating: Number(signalRating) } : {}),
+      ...(notes.trim() ? { notes: notes.trim() } : {}),
+    };
+    await logContact.mutateAsync(input);
+    setStationId('');
+    setCounterpartyStationId('');
+    setOccurredAt(nowLocalInputValue());
+    setMode('simplex');
+    setChannel('');
+    setSignalRating('');
+    setNotes('');
+    onLogged?.();
+  }
+
+  if (myStations.length === 0) {
+    return (
+      <p className="mt-4 text-sm text-ink/60">
+        You don&apos;t have a station in this Circle yet, so there&apos;s nothing to log a contact for.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={(event) => void handleSubmit(event)} className="mt-4 space-y-3 border-t border-black/5 pt-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Your station" required>
+          {(id) => (
+            <Select
+              id={id}
+              value={stationId}
+              onChange={(event) => {
+                setStationId(event.target.value);
+                setCounterpartyStationId('');
+              }}
+            >
+              <option value="">Choose…</option>
+              {myStations.map((member) => (
+                <option key={member.stationId} value={member.stationId}>
+                  {member.stationName}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label="Other station" required>
+          {(id) => (
+            <Select
+              id={id}
+              value={counterpartyStationId}
+              onChange={(event) => setCounterpartyStationId(event.target.value)}
+              disabled={!stationId}
+            >
+              <option value="">Choose…</option>
+              {counterpartyOptions.map((member) => (
+                <option key={member.stationId} value={member.stationId}>
+                  {member.stationName}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label="Date &amp; time" required>
+          {(id) => (
+            <TextInput
+              id={id}
+              type="datetime-local"
+              value={occurredAt}
+              max={nowLocalInputValue()}
+              onChange={(event) => setOccurredAt(event.target.value)}
+            />
+          )}
+        </Field>
+        <Field label="Mode" required>
+          {(id) => (
+            <Select id={id} value={mode} onChange={(event) => setMode(event.target.value as ContactMode)}>
+              {MODES.map((value) => (
+                <option key={value} value={value}>
+                  {CONNECTIVITY_PATH_TYPE_LABELS[value]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label="Channel" hint="Optional, e.g. a GMRS channel or repeater name">
+          {(id) => (
+            <TextInput
+              id={id}
+              value={channel}
+              onChange={(event) => setChannel(event.target.value)}
+              placeholder="e.g. GMRS ch 3"
+              maxLength={200}
+            />
+          )}
+        </Field>
+        <Field label="Signal quality" hint="Optional">
+          {(id) => (
+            <Select id={id} value={signalRating} onChange={(event) => setSignalRating(event.target.value)}>
+              <option value="">Not rated</option>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <option key={value} value={value}>
+                  {value} / 5
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      </div>
+      <Field label="Notes" hint="Optional">
+        {(id) => (
+          <TextArea id={id} value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} />
+        )}
+      </Field>
+      {logContact.isError ? (
+        <p role="alert" className="text-sm text-red-700">
+          {(logContact.error as Error).message}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={!canSubmit || logContact.isPending}>
+          {logContact.isPending ? 'Logging…' : 'Log contact'}
+        </Button>
+        {onCancel ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+        ) : null}
+      </div>
+    </form>
+  );
+}

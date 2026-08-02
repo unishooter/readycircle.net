@@ -4,6 +4,7 @@ import {
   circleRoleAssignments,
   circleRoles,
   circles,
+  contacts,
   repeaters,
   stationCapabilities,
   stationLocations,
@@ -32,6 +33,7 @@ import {
   analyzeRfReachability,
   shapeStationLocation,
   type RfAnalysisResult,
+  type RfConfirmedContact,
   type RfRepeater,
   type RfStation,
   type RfStationRepeaterLink,
@@ -265,5 +267,20 @@ export async function analyzeCircleConnectivity(db: Database, circleId: string):
     access: row.access as RfStationRepeaterLink['access'],
   }));
 
-  return analyzeRfReachability({ stations: rfStations, repeaters: rfRepeaters, links: rfLinks });
+  const contactRows = stationIds.length
+    ? await db.select().from(contacts).where(inArray(contacts.stationId, stationIds))
+    : [];
+  const rfConfirmedContacts: RfConfirmedContact[] = contactRows.map((row) => ({
+    stationAId: row.stationId,
+    stationBId: row.counterpartyStationId,
+    mode: row.mode as RfConfirmedContact['mode'],
+    occurredAt: row.occurredAt.toISOString(),
+  }));
+
+  return analyzeRfReachability({
+    stations: rfStations,
+    repeaters: rfRepeaters,
+    links: rfLinks,
+    confirmedContacts: rfConfirmedContacts,
+  });
 }

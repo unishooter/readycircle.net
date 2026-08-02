@@ -241,7 +241,10 @@ function ConnectivityBody({ content }: { content: unknown }) {
                   </td>
                   <td className="py-2 pr-3 text-ink/80">{link.distanceKm !== null ? `~${link.distanceKm} km` : '—'}</td>
                   <td className="py-2">
-                    <Badge tone={VERDICT_TONE[link.verdict]}>{CONNECTIVITY_VERDICT_LABELS[link.verdict]}</Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge tone={VERDICT_TONE[link.verdict]}>{CONNECTIVITY_VERDICT_LABELS[link.verdict]}</Badge>
+                      {link.confirmed ? <Badge tone="primary">Confirmed by contact</Badge> : null}
+                    </div>
                     {link.detail ? <p className="mt-0.5 text-xs text-ink/50">{link.detail}</p> : null}
                   </td>
                 </tr>

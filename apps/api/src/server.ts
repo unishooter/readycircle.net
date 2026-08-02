@@ -29,6 +29,7 @@ import { netRoutes } from './modules/nets/routes.js';
 import { repeaterRoutes } from './modules/repeaters/routes.js';
 import { inviteRoutes } from './modules/invites/routes.js';
 import { adminRoutes } from './modules/admin/routes.js';
+import { contactRoutes } from './modules/contacts/routes.js';
 import { createJobDispatcher, type JobDispatcher } from './modules/plans/dispatcher.js';
 import { createDocumentStore, type DocumentStore } from '@readycircle/plan-engine';
 
@@ -111,6 +112,7 @@ export function buildServer({ config, db, planJobDispatcher, planDocumentStore }
   app.register(repeaterRoutes, { prefix: '/api/v1' });
   app.register(inviteRoutes, { prefix: '/api/v1' });
   app.register(adminRoutes, { prefix: '/api/v1' });
+  app.register(contactRoutes, { prefix: '/api/v1' });
 
   return app;
 }

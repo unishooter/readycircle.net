@@ -72,6 +72,7 @@ describe('PlanSections renderers', () => {
             distanceKm: 18,
             viaRepeaterName: 'Water Tower 725',
             detail: null,
+            confirmed: false,
           },
         ],
         gaps: ['Valley Cabin cannot reach anyone directly.'],
@@ -89,6 +90,38 @@ describe('PlanSections renderers', () => {
     expect(screen.getByText('Marginal')).toBeInTheDocument();
     expect(screen.getByText(/valley cabin cannot reach anyone directly/i)).toBeInTheDocument();
     expect(screen.getByText(/repeaters considered: water tower 725/i)).toBeInTheDocument();
+  });
+
+  it('shows a "Confirmed by contact" badge when a link was confirmed by a logged contact', () => {
+    renderSection({
+      sectionKey: 'connectivity',
+      title: 'Connectivity analysis',
+      sortOrder: 2,
+      content: {
+        narrative: 'Two stations were analyzed.',
+        baselineRelay: { pass: true, summary: 'Ridge Base can relay to every station.', hubStationNames: ['Ridge Base'] },
+        stations: [],
+        links: [
+          {
+            fromStationId: STATION_A,
+            fromStationName: 'Ridge Base',
+            toStationId: STATION_B,
+            toStationName: 'Valley Cabin',
+            pathType: 'simplex',
+            verdict: 'likely',
+            distanceKm: 5,
+            viaRepeaterName: null,
+            detail: 'Confirmed by a logged contact on 2026-07-01',
+            confirmed: true,
+          },
+        ],
+        gaps: [],
+        repeatersConsidered: [],
+      },
+    });
+
+    expect(screen.getByText('Confirmed by contact')).toBeInTheDocument();
+    expect(screen.getByText(/confirmed by a logged contact on 2026-07-01/i)).toBeInTheDocument();
   });
 
   it('renders gear recommendations with priorities and target stations', () => {

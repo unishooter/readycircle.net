@@ -61,10 +61,25 @@ export interface RfStationRepeaterLink {
   access: RepeaterAccess;
 }
 
+/**
+ * A self-declared logged QSO between two stations (see packages/database
+ * `contacts` table). Observed truth like `RfStationRepeaterLink` -- when
+ * present for a pair, it outranks the distance/coverage estimate entirely
+ * rather than just nudging it.
+ */
+export interface RfConfirmedContact {
+  stationAId: string;
+  stationBId: string;
+  mode: ConnectivityPathType;
+  /** ISO instant; when multiple contacts exist for a pair, the most recent wins. */
+  occurredAt: string;
+}
+
 export interface RfAnalysisInput {
   stations: RfStation[];
   repeaters: RfRepeater[];
   links: RfStationRepeaterLink[];
+  confirmedContacts?: RfConfirmedContact[];
   /** Defaults to 'rolling' when unknown. */
   terrain?: TerrainClass;
 }
@@ -266,6 +281,20 @@ export function analyzeRfReachability(input: RfAnalysisInput): RfAnalysisResult 
     byRepeater.set(link.repeaterId, link.access);
   }
 
+  /** Unordered pair key so lookups don't care which side is "from"/"to". */
+  function pairKey(idA: string, idB: string): string {
+    return idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
+  }
+
+  const confirmedByPair = new Map<string, RfConfirmedContact>();
+  for (const contact of input.confirmedContacts ?? []) {
+    const key = pairKey(contact.stationAId, contact.stationBId);
+    const existing = confirmedByPair.get(key);
+    if (!existing || contact.occurredAt > existing.occurredAt) {
+      confirmedByPair.set(key, contact);
+    }
+  }
+
   /**
    * A station's usable access to a repeater: declared links are observed
    * truth; otherwise (notably for hypothetical stations) fall back to a
@@ -427,6 +456,16 @@ export function analyzeRfReachability(input: RfAnalysisInput): RfAnalysisResult 
         }
       }
 
+      const confirmedContact = confirmedByPair.get(pairKey(a.id, b.id));
+      if (confirmedContact) {
+        best = {
+          pathType: confirmedContact.mode,
+          verdict: 'likely',
+          viaRepeaterName: best?.pathType === confirmedContact.mode ? best.viaRepeaterName : null,
+          detail: `Confirmed by a logged contact on ${confirmedContact.occurredAt.slice(0, 10)}`,
+        };
+      }
+
       const link: ConnectivityLink = best
         ? {
             fromStationId: a.id,
@@ -438,6 +477,7 @@ export function analyzeRfReachability(input: RfAnalysisInput): RfAnalysisResult 
             distanceKm: distance === null ? null : roundKm(distance),
             viaRepeaterName: best.viaRepeaterName,
             detail: best.detail,
+            confirmed: Boolean(confirmedContact),
           }
         : {
             fromStationId: a.id,
@@ -449,6 +489,7 @@ export function analyzeRfReachability(input: RfAnalysisInput): RfAnalysisResult 
             distanceKm: distance === null ? null : roundKm(distance),
             viaRepeaterName: null,
             detail: hasCoords ? 'No shared service, repeater, satellite, or mesh path' : 'Location needed for coverage analysis',
+            confirmed: false,
           };
       resultLinks.push(link);
 

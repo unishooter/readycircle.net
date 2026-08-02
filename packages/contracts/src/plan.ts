@@ -249,6 +249,8 @@ export const connectivityLinkSchema = z.object({
   /** Repeater name when pathType is 'repeater'. */
   viaRepeaterName: z.string().nullable(),
   detail: z.string().nullable(),
+  /** True when a logged contact confirms this pair, overriding the RF estimate. */
+  confirmed: z.boolean(),
 });
 export type ConnectivityLink = z.infer<typeof connectivityLinkSchema>;
 

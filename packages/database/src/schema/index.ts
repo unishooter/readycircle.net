@@ -6,3 +6,4 @@ export * from './plans.js';
 export * from './nets.js';
 export * from './repeaters.js';
 export * from './settings.js';
+export * from './contacts.js';

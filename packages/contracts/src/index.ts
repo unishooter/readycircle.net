@@ -11,3 +11,4 @@ export * from './net.js';
 export * from './repeater.js';
 export * from './invite.js';
 export * from './admin.js';
+export * from './contact.js';

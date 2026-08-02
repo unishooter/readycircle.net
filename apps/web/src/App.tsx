@@ -5,7 +5,6 @@ import { InvitePreviewPage } from './routes/invite/InvitePreviewPage.js';
 import { RouteGuard } from './routes/app/RouteGuard.js';
 import { AppShell } from './routes/app/AppShell.js';
 import { DashboardPage } from './routes/app/DashboardPage.js';
-import { ComingSoonPage } from './routes/app/ComingSoonPage.js';
 import { PrivacyPage } from './routes/app/PrivacyPage.js';
 import { AccountPage } from './routes/app/AccountPage.js';
 import { StationsListPage } from './routes/app/stations/StationsListPage.js';
@@ -21,6 +20,7 @@ import { NetsListPage } from './routes/app/nets/NetsListPage.js';
 import { NetDetailPage } from './routes/app/nets/NetDetailPage.js';
 import { NetCreatePage, NetEditPage } from './routes/app/nets/NetFormPage.js';
 import { AdminPage } from './routes/app/admin/AdminPage.js';
+import { ContactsPage } from './routes/app/contacts/ContactsPage.js';
 import { NotFoundPage } from './routes/NotFoundPage.js';
 
 export function App() {
@@ -47,15 +47,7 @@ export function App() {
             <Route path="nets" element={<NetsListPage />} />
             <Route path="nets/:netId" element={<NetDetailPage />} />
             <Route path="nets/:netId/edit" element={<NetEditPage />} />
-            <Route
-              path="contacts"
-              element={
-                <ComingSoonPage
-                  title="Contacts"
-                  description="A shared contact directory for your Circles is coming in a future milestone."
-                />
-              }
-            />
+            <Route path="contacts" element={<ContactsPage />} />
             <Route path="privacy" element={<PrivacyPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="admin" element={<AdminPage />} />

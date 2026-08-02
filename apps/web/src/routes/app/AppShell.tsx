@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Badge, cx } from '@readycircle/ui';
+import { cx } from '@readycircle/ui';
 import { useLogout, useSession } from '../../features/session/api.js';
 import logoHorizontal from '../../assets/readycircle-logo-horizontal.png';
 
@@ -17,7 +17,7 @@ const navItems: NavItem[] = [
   { to: '/app/circles', label: 'My Radio Circles' },
   { to: '/app/plans', label: 'Plans' },
   { to: '/app/nets', label: 'Nets' },
-  { to: '/app/contacts', label: 'Contacts', comingSoon: true },
+  { to: '/app/contacts', label: 'Contacts' },
   { to: '/app/privacy', label: 'Privacy' },
   { to: '/app/account', label: 'Account' },
 ];
@@ -98,7 +98,6 @@ export function AppShell() {
               >
                 &#9776;
               </button>
-              <Badge tone="amber">Development environment</Badge>
             </div>
             <div className="flex items-center gap-4">
               <span className="hidden text-sm text-ink/70 sm:inline">{session?.user?.displayName}</span>

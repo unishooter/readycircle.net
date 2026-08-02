@@ -16,6 +16,7 @@ import { CircleRepeatersCard } from '../../../features/repeaters/CircleRepeaters
 import { CircleGearSummaryCard } from '../../../features/plans/CircleGearSummaryCard.js';
 import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
 import { InviteCard } from '../../../features/invites/InviteCard.js';
+import { CircleContactsCard } from '../../../features/contacts/CircleContactsCard.js';
 import { VersionStatusBadge } from '../plans/plan-status.js';
 import { formatOccurrence } from '../nets/format.js';
 
@@ -229,6 +230,8 @@ export function CircleDetailPage() {
       </div>
 
       <CircleRepeatersCard circleId={circle.id} isCoordinator={isCoordinator} />
+
+      <CircleContactsCard circleId={circle.id} />
 
       <InviteCard circleId={circle.id} />
 

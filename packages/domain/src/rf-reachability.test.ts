@@ -272,6 +272,86 @@ describe('hypothetical stations', () => {
   });
 });
 
+describe('confirmed contacts', () => {
+  it('bumps an unlikely simplex estimate to likely and flags it confirmed', () => {
+    const result = analyzeRfReachability({
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(12, { id: 'b', name: 'B' })],
+      repeaters: [],
+      links: [],
+      confirmedContacts: [{ stationAId: 'a', stationBId: 'b', mode: 'simplex', occurredAt: '2026-07-01T12:00:00.000Z' }],
+    });
+    const link = linkBetween(result, 'a', 'b');
+    expect(link.verdict).toBe('likely');
+    expect(link.confirmed).toBe(true);
+    expect(link.pathType).toBe('simplex');
+    expect(link.detail).toBe('Confirmed by a logged contact on 2026-07-01');
+  });
+
+  it('is order-independent -- the pair matches regardless of which side is A/B', () => {
+    const result = analyzeRfReachability({
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(12, { id: 'b', name: 'B' })],
+      repeaters: [],
+      links: [],
+      confirmedContacts: [{ stationAId: 'b', stationBId: 'a', mode: 'simplex', occurredAt: '2026-07-01T12:00:00.000Z' }],
+    });
+    expect(linkBetween(result, 'a', 'b').confirmed).toBe(true);
+  });
+
+  it('uses the contact mode as the path type even when it differs from the best estimated path', () => {
+    const result = analyzeRfReachability({
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(40, { id: 'b', name: 'B' })],
+      repeaters: [repeater({ id: 'r1', name: 'Green Mountain' })],
+      links: [
+        { stationId: 'a', repeaterId: 'r1', access: 'rx_tx' },
+        { stationId: 'b', repeaterId: 'r1', access: 'rx_tx' },
+      ],
+      confirmedContacts: [{ stationAId: 'a', stationBId: 'b', mode: 'satellite', occurredAt: '2026-07-01T12:00:00.000Z' }],
+    });
+    const link = linkBetween(result, 'a', 'b');
+    expect(link.pathType).toBe('satellite');
+    expect(link.verdict).toBe('likely');
+    expect(link.confirmed).toBe(true);
+  });
+
+  it('keeps the repeater name when the confirmed mode matches the best repeater path', () => {
+    const result = analyzeRfReachability({
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(40, { id: 'b', name: 'B' })],
+      repeaters: [repeater({ id: 'r1', name: 'Green Mountain' })],
+      links: [
+        { stationId: 'a', repeaterId: 'r1', access: 'rx_tx' },
+        { stationId: 'b', repeaterId: 'r1', access: 'rx_tx' },
+      ],
+      confirmedContacts: [{ stationAId: 'a', stationBId: 'b', mode: 'repeater', occurredAt: '2026-07-01T12:00:00.000Z' }],
+    });
+    const link = linkBetween(result, 'a', 'b');
+    expect(link.viaRepeaterName).toBe('Green Mountain');
+  });
+
+  it('uses the most recent contact when several exist for the same pair', () => {
+    const result = analyzeRfReachability({
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(12, { id: 'b', name: 'B' })],
+      repeaters: [],
+      links: [],
+      confirmedContacts: [
+        { stationAId: 'a', stationBId: 'b', mode: 'mesh', occurredAt: '2025-01-01T00:00:00.000Z' },
+        { stationAId: 'a', stationBId: 'b', mode: 'simplex', occurredAt: '2026-07-01T12:00:00.000Z' },
+      ],
+    });
+    const link = linkBetween(result, 'a', 'b');
+    expect(link.pathType).toBe('simplex');
+    expect(link.detail).toBe('Confirmed by a logged contact on 2026-07-01');
+  });
+
+  it('leaves unconfirmed pairs marked confirmed: false', () => {
+    const result = analyzeRfReachability({
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(3, { id: 'b', name: 'B' })],
+      repeaters: [],
+      links: [],
+    });
+    expect(linkBetween(result, 'a', 'b').confirmed).toBe(false);
+  });
+});
+
 describe('graph analysis and baseline relay', () => {
   it('passes when a middle station bridges two edges, and flags it as a SPOF', () => {
     const result = analyzeRfReachability({

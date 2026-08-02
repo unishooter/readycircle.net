@@ -14,11 +14,14 @@ with session logs and per-station participation stats. Circles also keep a
 generation is **scenario-aware**: each version targets chosen
 circumstances (outage duration and extent) and includes a deterministic
 RF **connectivity analysis** plus AI gear recommendations -- including for
-*planned* stations that have a location but no equipment yet. This
-repository contains the full application: a public landing page, an
+*planned* stations that have a location but no equipment yet. A
+**contact log** lets any member record a verified QSO with another station
+in the same Circle; logged contacts feed straight back into the
+connectivity analysis, upgrading an estimated verdict to a confirmed one.
+This repository contains the full application: a public landing page, an
 authenticated app shell, station and Radio Circle management, AI-assisted
-plan generation, nets, and the backend/infrastructure those features run
-on.
+plan generation, nets, a contact log, and the backend/infrastructure those
+features run on.
 
 ## Architecture
 
@@ -236,6 +239,33 @@ of being fully open:
 See [ADR 13](docs/decisions/0013-invite-only-access-and-admin-panel.md) for
 the full design rationale.
 
+## Contact log (verified QSOs)
+
+Any active Circle member can log that their station successfully talked to
+another station in the same Circle:
+
+- **Logging.** "Log a contact" is available from the top-level `/app/contacts`
+  page and from the Circle detail page. The caller picks one of their own
+  stations, the other (fellow Circle member) station, when it happened,
+  the mode (simplex, repeater, satellite, or mesh), and optionally a
+  channel, a 1-5 signal rating, and notes. Logging is one-sided and
+  self-declared -- whoever logs it is the record, the same "declared
+  outranks estimated" precedent as the repeater directory's RX/TX access
+  declarations -- there's no mutual-confirmation step.
+- **Feeds the connectivity analysis.** A logged contact between two
+  stations upgrades that pair's Plan connectivity verdict to "Likely" and
+  marks the link "Confirmed by contact," overriding the RF engine's own
+  distance/gear estimate for that pair (see
+  [ADR 14](docs/decisions/0014-contact-log-verified-qsos.md)).
+- **Placement.** The top-level Contacts page lists every contact across the
+  caller's own stations; the Circle detail page shows the five most recent
+  Circle contacts plus the logging form; the station detail page shows a
+  read-only recent-contacts card to the station's owner. Only the person
+  who logged a contact can delete it.
+
+See [ADR 14](docs/decisions/0014-contact-log-verified-qsos.md) for the full
+design rationale.
+
 ## Tests
 
 ```bash
@@ -310,11 +340,17 @@ Session Manager, not SSH.
   [ADR 9](docs/decisions/0009-mgrs-location-capture.md)). Radio Circles
   still use a plain free-text area/grid field, since this milestone's scope
   was stations only.
-- **No equipment inventory or contacts UI yet.** These are visible as
-  "coming in a future milestone" placeholders in the app shell. (Plans and
-  Nets shipped -- see
-  [ADR 10](docs/decisions/0010-hybrid-ai-plan-generation.md) and
-  [ADR 11](docs/decisions/0011-nets-computed-occurrences.md).)
+- **No equipment inventory yet.** The station detail page's Equipment card
+  is still a "coming in a future milestone" placeholder. (Plans, Nets, and
+  the contact log shipped -- see
+  [ADR 10](docs/decisions/0010-hybrid-ai-plan-generation.md),
+  [ADR 11](docs/decisions/0011-nets-computed-occurrences.md), and
+  [ADR 14](docs/decisions/0014-contact-log-verified-qsos.md).)
+- **The contact log is successes-only and Circle-scoped.** There is no
+  "attempted but failed" tracking, and both sides of a contact must already
+  be stations in one of the logger's own Circles -- no free-text "callsign
+  I heard" entry (see
+  [ADR 14](docs/decisions/0014-contact-log-verified-qsos.md)).
 - **Net reminders are not sent.** The nets feature (scheduled check-ins,
   session logs, participation stats) is live, but the reminder hook is a
   no-op stub -- the SES-backed scheduled reminder job is deferred until
@@ -353,7 +389,5 @@ The natural next slice of work, building on this foundation:
 3. Set up SES email sending and turn the `NetReminderService` stub into a
    scheduled worker job (`net.reminder`) that reminds members before each
    computed net occurrence.
-4. Build the Contacts surface in `apps/web` that is currently a
-   "coming soon" placeholder.
-5. Add equipment inventory to the station detail page.
-6. Add Apple sign-in as a second Cognito federated identity provider.
+4. Add equipment inventory to the station detail page.
+5. Add Apple sign-in as a second Cognito federated identity provider.

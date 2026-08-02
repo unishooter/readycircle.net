@@ -64,6 +64,13 @@
       "when": 1785864000000,
       "tag": "0008_invite_only_access_and_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785950400000,
+      "tag": "0009_contact_log",
+      "breakpoints": true
     }
   ]
 }
