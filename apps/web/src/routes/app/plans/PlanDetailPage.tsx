@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
+  DEFAULT_SCENARIO,
   PLAN_GENERATION_STAGE_LABELS,
   PLAN_GENERATION_STAGE_ORDER,
   type PlanGenerationStage,
+  type Scenario,
 } from '@readycircle/contracts';
 import { Button, Card, CardTitle, cx } from '@readycircle/ui';
 import { usePlan, usePlanVersion, usePublishVersion, useRegeneratePlan, planDocumentUrl } from '../../../features/plans/api.js';
+import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
 import { PlanSectionView } from './PlanSections.js';
 import { VersionStatusBadge } from './plan-status.js';
 
@@ -14,6 +17,8 @@ export function PlanDetailPage() {
   const { planId } = useParams<{ planId: string }>();
   const { data: plan, isLoading, error } = usePlan(planId);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const [scenarioDraft, setScenarioDraft] = useState<Scenario | null>(null);
   const publish = usePublishVersion(planId ?? '');
   const regenerate = useRegeneratePlan(planId ?? '');
 
@@ -43,9 +48,15 @@ export function PlanDetailPage() {
   const canManage = plan.viewerCanManage;
   const anyGenerating = versions.some((v) => v.status === 'generating');
 
-  async function handleRegenerate() {
-    await regenerate.mutateAsync();
+  // Prefill the picker with the viewed version's scenario so "regenerate
+  // with tweaks" starts from what the plan currently targets.
+  const currentScenario = scenarioDraft ?? version?.scenario ?? DEFAULT_SCENARIO;
+
+  async function handleRegenerate(scenario?: Scenario) {
+    await regenerate.mutateAsync(scenario ? { scenario } : {});
     setSelectedVersionId(null);
+    setRegenerateOpen(false);
+    setScenarioDraft(null);
   }
 
   async function handlePublish() {
@@ -149,7 +160,7 @@ export function PlanDetailPage() {
                 {canManage ? (
                   <Button
                     variant="secondary"
-                    onClick={() => void handleRegenerate()}
+                    onClick={() => setRegenerateOpen((open) => !open)}
                     disabled={regenerate.isPending || anyGenerating}
                   >
                     Regenerate
@@ -157,6 +168,26 @@ export function PlanDetailPage() {
                 ) : null}
               </div>
             </div>
+            {canManage && regenerateOpen ? (
+              <div className="mt-4 space-y-3 border-t border-black/10 pt-4">
+                <p className="text-xs font-medium text-ink/60">
+                  What scenario should the new version cover?
+                </p>
+                <ScenarioPicker value={currentScenario} onChange={setScenarioDraft} />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => void handleRegenerate(currentScenario)}
+                    disabled={regenerate.isPending}
+                  >
+                    {regenerate.isPending ? 'Starting…' : 'Regenerate plan'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setRegenerateOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             {publish.isError ? (
               <p role="alert" className="mt-2 text-xs text-red-700">
                 {(publish.error as Error).message}

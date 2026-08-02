@@ -1,6 +1,6 @@
-export type { EngineLogger, PlanContext, PlanContextMember } from './types.js';
-export { buildPlanContext } from './context.js';
-export { buildOverviewContent, buildRosterContent } from './sections.js';
+export type { EngineLogger, PlanContext, PlanContextMember, PlanContextRepeater } from './types.js';
+export { analyzeCircleConnectivity, buildPlanContext } from './context.js';
+export { buildConnectivityContent, buildOverviewContent, buildRosterContent } from './sections.js';
 export {
   ADVISORY_SYSTEM_PROMPT,
   buildAdvisoryUserPrompt,

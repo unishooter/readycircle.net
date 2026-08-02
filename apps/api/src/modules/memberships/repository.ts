@@ -12,6 +12,7 @@ export interface MembershipDetail {
   circleId: string;
   stationId: string;
   stationName: string;
+  stationStatus: 'active' | 'hypothetical' | 'archived';
   userId: string;
   status: 'active' | 'removed';
   joinedAt: Date;
@@ -24,7 +25,7 @@ function roleMapFromRows(rows: { membershipId: string; key: string }[]): Map<str
 
 export async function listMembers(db: Database, circleId: string): Promise<MembershipDetail[]> {
   const rows = await db
-    .select({ membership: circleMemberships, stationName: stations.name })
+    .select({ membership: circleMemberships, stationName: stations.name, stationStatus: stations.status })
     .from(circleMemberships)
     .innerJoin(stations, eq(stations.id, circleMemberships.stationId))
     .where(eq(circleMemberships.circleId, circleId))
@@ -45,6 +46,7 @@ export async function listMembers(db: Database, circleId: string): Promise<Membe
     circleId: row.membership.circleId,
     stationId: row.membership.stationId,
     stationName: row.stationName,
+    stationStatus: row.stationStatus as MembershipDetail['stationStatus'],
     userId: row.membership.userId,
     status: row.membership.status as 'active' | 'removed',
     joinedAt: row.membership.joinedAt,
@@ -54,7 +56,7 @@ export async function listMembers(db: Database, circleId: string): Promise<Membe
 
 export async function getMembershipById(db: Database, membershipId: string): Promise<MembershipDetail | null> {
   const [row] = await db
-    .select({ membership: circleMemberships, stationName: stations.name })
+    .select({ membership: circleMemberships, stationName: stations.name, stationStatus: stations.status })
     .from(circleMemberships)
     .innerJoin(stations, eq(stations.id, circleMemberships.stationId))
     .where(eq(circleMemberships.id, membershipId))
@@ -73,6 +75,7 @@ export async function getMembershipById(db: Database, membershipId: string): Pro
     circleId: row.membership.circleId,
     stationId: row.membership.stationId,
     stationName: row.stationName,
+    stationStatus: row.stationStatus as MembershipDetail['stationStatus'],
     userId: row.membership.userId,
     status: row.membership.status as 'active' | 'removed',
     joinedAt: row.membership.joinedAt,

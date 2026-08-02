@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { uuidSchema } from './common.js';
-import { circleRoleSchema, membershipStatusSchema } from './enums.js';
+import { circleRoleSchema, membershipStatusSchema, stationStatusSchema } from './enums.js';
 
 export const createMembershipSchema = z.object({
   stationId: uuidSchema,
@@ -18,6 +18,8 @@ export const membershipResponseSchema = z.object({
   circleId: uuidSchema,
   stationId: uuidSchema,
   stationName: z.string(),
+  /** Lets rosters flag planned (hypothetical) stations. */
+  stationStatus: stationStatusSchema,
   userId: uuidSchema,
   role: circleRoleSchema,
   status: membershipStatusSchema,

@@ -41,7 +41,13 @@ export function StationsListPage() {
               <Card className="h-full transition-colors hover:border-navy-300">
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="text-base font-semibold text-ink">{station.name}</h2>
-                  <Badge tone={station.status === 'active' ? 'primary' : 'neutral'}>{station.status}</Badge>
+                  <Badge
+                    tone={
+                      station.status === 'active' ? 'primary' : station.status === 'hypothetical' ? 'amber' : 'neutral'
+                    }
+                  >
+                    {station.status === 'hypothetical' ? 'planned' : station.status}
+                  </Badge>
                 </div>
                 <p className="mt-1 text-sm text-ink/60">{STATION_TYPE_LABELS[station.stationType]}</p>
                 <p className="mt-3 text-xs text-ink/50">

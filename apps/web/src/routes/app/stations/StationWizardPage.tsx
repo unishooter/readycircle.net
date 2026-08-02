@@ -6,9 +6,10 @@ import {
   STATION_TYPE_LABELS,
   STATION_VISIBILITY_LABELS,
 } from '@readycircle/contracts';
-import { Button, Card, Stepper } from '@readycircle/ui';
+import { Button, Card, CheckboxOption, Stepper } from '@readycircle/ui';
 import { useCreateStation } from '../../../features/stations/api.js';
 import {
+  StationAntennaPowerSection,
   StationCapabilitiesSection,
   StationExperienceSection,
   StationGoalsSection,
@@ -18,11 +19,25 @@ import {
   type StationFormDraft,
 } from '../../../features/stations/form-sections/index.js';
 
-const STEPS = ['Identity', 'Location', 'Capability', 'Experience', 'Goals', 'Participation & privacy', 'Review'];
+const FULL_STEPS = [
+  'Identity',
+  'Location',
+  'Capability',
+  'Antenna & power',
+  'Experience',
+  'Goals',
+  'Participation & privacy',
+  'Review',
+];
+
+// A planned station has no equipment yet -- only identity and location
+// matter, and the gear-check plan recommends what to buy for it.
+const PLANNED_STEPS = ['Identity', 'Location', 'Review'];
 
 const initialDraft: StationFormDraft = {
   name: '',
   stationType: 'home',
+  status: 'active',
   location: { precision: 'broad_area', areaLabel: '' },
   capabilities: [],
   experienceLevel: 'new',
@@ -33,6 +48,7 @@ const initialDraft: StationFormDraft = {
   willingToActAsNetControl: false,
   receiveOnly: false,
   visibility: 'private',
+  backupPower: [],
 };
 
 export function StationWizardPage() {
@@ -41,8 +57,11 @@ export function StationWizardPage() {
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<StationFormDraft>(initialDraft);
 
-  const isLastStep = step === STEPS.length - 1;
-  const canProceed = step !== 0 || draft.name.trim().length > 0;
+  const isPlanned = draft.status === 'hypothetical';
+  const steps = isPlanned ? PLANNED_STEPS : FULL_STEPS;
+  const stepName = steps[Math.min(step, steps.length - 1)];
+  const isLastStep = step === steps.length - 1;
+  const canProceed = stepName !== 'Identity' || draft.name.trim().length > 0;
 
   function patchDraft(patch: Partial<StationFormDraft>) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -55,7 +74,8 @@ export function StationWizardPage() {
   async function handleSubmit() {
     const created = await createStation.mutateAsync({
       ...draft,
-      capabilities: draft.capabilities.length > 0 ? draft.capabilities : ['frs'],
+      capabilities:
+        draft.capabilities.length > 0 ? draft.capabilities : isPlanned ? [] : ['frs'],
     });
     navigate(`/app/stations/${created.id}`);
   }
@@ -67,17 +87,33 @@ export function StationWizardPage() {
         <p className="mt-1 text-sm text-ink/60">Takes about two minutes. You can edit everything later.</p>
       </div>
 
-      <Stepper steps={STEPS} currentStep={step} />
+      <Stepper steps={steps} currentStep={step} />
 
       <Card>
-        {step === 0 ? <StationIdentitySection draft={draft} onChange={patchDraft} autoFocusName /> : null}
-        {step === 1 ? <StationLocationSection location={draft.location} onChange={patchLocation} /> : null}
-        {step === 2 ? <StationCapabilitiesSection draft={draft} onChange={patchDraft} /> : null}
-        {step === 3 ? <StationExperienceSection draft={draft} onChange={patchDraft} /> : null}
-        {step === 4 ? <StationGoalsSection draft={draft} onChange={patchDraft} /> : null}
-        {step === 5 ? <StationParticipationPrivacySection draft={draft} onChange={patchDraft} /> : null}
+        {stepName === 'Identity' ? (
+          <div className="space-y-4">
+            <StationIdentitySection draft={draft} onChange={patchDraft} autoFocusName />
+            <CheckboxOption
+              label="This is a planned station (no equipment yet)"
+              description="Just pick a location — generated plans will recommend the gear to get it on the air."
+              checked={isPlanned}
+              onChange={(event) => {
+                patchDraft({ status: event.target.checked ? 'hypothetical' : 'active' });
+                setStep(0);
+              }}
+            />
+          </div>
+        ) : null}
+        {stepName === 'Location' ? <StationLocationSection location={draft.location} onChange={patchLocation} /> : null}
+        {stepName === 'Capability' ? <StationCapabilitiesSection draft={draft} onChange={patchDraft} /> : null}
+        {stepName === 'Antenna & power' ? <StationAntennaPowerSection draft={draft} onChange={patchDraft} /> : null}
+        {stepName === 'Experience' ? <StationExperienceSection draft={draft} onChange={patchDraft} /> : null}
+        {stepName === 'Goals' ? <StationGoalsSection draft={draft} onChange={patchDraft} /> : null}
+        {stepName === 'Participation & privacy' ? (
+          <StationParticipationPrivacySection draft={draft} onChange={patchDraft} />
+        ) : null}
 
-        {step === 6 ? (
+        {stepName === 'Review' ? (
           <div className="space-y-4 text-sm">
             <p className="text-ink/60">Review your station before saving.</p>
             <dl className="space-y-2">
@@ -89,22 +125,45 @@ export function StationWizardPage() {
                 <dt className="text-ink/60">Type</dt>
                 <dd className="font-medium text-ink">{STATION_TYPE_LABELS[draft.stationType]}</dd>
               </div>
+              {isPlanned ? (
+                <div className="flex justify-between border-b border-black/5 pb-2">
+                  <dt className="text-ink/60">Status</dt>
+                  <dd className="font-medium text-ink">Planned (no equipment yet)</dd>
+                </div>
+              ) : null}
               <div className="flex justify-between border-b border-black/5 pb-2">
                 <dt className="text-ink/60">Area</dt>
                 <dd className="font-medium text-ink">{draft.location.areaLabel || 'Not set'}</dd>
               </div>
-              <div className="flex justify-between border-b border-black/5 pb-2">
-                <dt className="text-ink/60">Capabilities</dt>
-                <dd className="font-medium text-ink">
-                  {draft.capabilities.length > 0
-                    ? draft.capabilities.map((c) => RADIO_CAPABILITY_LABELS[c]).join(', ')
-                    : 'FRS (default)'}
-                </dd>
-              </div>
-              <div className="flex justify-between border-b border-black/5 pb-2">
-                <dt className="text-ink/60">Authorization</dt>
-                <dd className="font-medium text-ink">{AUTHORIZATION_LABELS[draft.authorization]}</dd>
-              </div>
+              {!isPlanned ? (
+                <>
+                  <div className="flex justify-between border-b border-black/5 pb-2">
+                    <dt className="text-ink/60">Capabilities</dt>
+                    <dd className="font-medium text-ink">
+                      {draft.capabilities.length > 0
+                        ? draft.capabilities.map((c) => RADIO_CAPABILITY_LABELS[c]).join(', ')
+                        : 'FRS (default)'}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between border-b border-black/5 pb-2">
+                    <dt className="text-ink/60">Antenna &amp; power</dt>
+                    <dd className="font-medium text-ink">
+                      {[
+                        draft.transmitPowerWatts ? `${draft.transmitPowerWatts} W` : null,
+                        draft.antennaHeightFeet ? `${draft.antennaHeightFeet} ft antenna` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || 'Defaults'}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between border-b border-black/5 pb-2">
+                    <dt className="text-ink/60">Authorization</dt>
+                    <dd className="font-medium text-ink">
+                      {draft.authorization ? AUTHORIZATION_LABELS[draft.authorization] : '—'}
+                    </dd>
+                  </div>
+                </>
+              ) : null}
               <div className="flex justify-between border-b border-black/5 pb-2">
                 <dt className="text-ink/60">Visibility</dt>
                 <dd className="font-medium text-ink">{STATION_VISIBILITY_LABELS[draft.visibility]}</dd>
@@ -128,7 +187,7 @@ export function StationWizardPage() {
             {createStation.isPending ? 'Saving…' : 'Create station'}
           </Button>
         ) : (
-          <Button onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))} disabled={!canProceed}>
+          <Button onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))} disabled={!canProceed}>
             Next
           </Button>
         )}

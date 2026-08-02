@@ -17,6 +17,7 @@ function makeVersionSummary(overrides: Partial<PlanVersionSummary> = {}): PlanVe
     publishedAt: null,
     createdAt: '2026-08-01T00:00:00.000Z',
     document: null,
+    scenario: null,
     ...overrides,
   };
 }
@@ -79,9 +80,11 @@ describe('PlanDetailPage', () => {
     planResult = { data: makePlan([version]), isLoading: false, error: null };
     versionResult = { data: { ...version, sections: [] } };
     renderPage();
+    // Stages before drafting_advisory (context + connectivity) are done.
     const items = screen.getAllByRole('listitem');
     expect(items[0]).toHaveTextContent('✓');
-    expect(items[1]).not.toHaveTextContent('✓');
+    expect(items[1]).toHaveTextContent('✓');
+    expect(items[2]).not.toHaveTextContent('✓');
   });
 
   it('shows the failure reason and a retry button for coordinators', () => {

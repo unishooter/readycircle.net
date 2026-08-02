@@ -9,10 +9,16 @@ and generate a shared **communications plan** -- roster, channel plan, role
 assignments, check-in schedule, and gap analysis, with a printable PDF --
 for staying in touch when cellular, internet, or power service goes down.
 **Nets** turn the plan into a habit: recurring scheduled on-air check-ins
-with session logs and per-station participation stats. This repository
-contains the full application: a public landing page, an authenticated app
-shell, station and Radio Circle management, AI-assisted plan generation,
-nets, and the backend/infrastructure those features run on.
+with session logs and per-station participation stats. Circles also keep a
+**repeater directory** (manual entry plus RepeaterBook import), and plan
+generation is **scenario-aware**: each version targets chosen
+circumstances (outage duration and extent) and includes a deterministic
+RF **connectivity analysis** plus AI gear recommendations -- including for
+*planned* stations that have a location but no equipment yet. This
+repository contains the full application: a public landing page, an
+authenticated app shell, station and Radio Circle management, AI-assisted
+plan generation, nets, and the backend/infrastructure those features run
+on.
 
 ## Architecture
 
@@ -50,7 +56,8 @@ later if a module needs to scale independently.
   shared by the API and the web app, so request/response shapes can never
   drift between frontend and backend.
 - **`packages/domain`** -- pure business rules (authorization predicates,
-  visibility shaping, the net recurrence/occurrence engine) with no I/O,
+  visibility shaping, the net recurrence/occurrence engine, and the RF
+  reachability engine behind the plan connectivity section) with no I/O,
   so they're trivial to unit test.
 - **`packages/plan-engine`** -- the plan-generation pipeline: Circle context
   builder, deterministic section builders, an `AdvisoryProvider` interface
@@ -145,6 +152,7 @@ notable ones:
 | `COGNITO_*` | Production identity provider config; not required in development. |
 | `OPENAI_API_KEY`, `OPENAI_MODEL` | AI plan generation. The key is required in production (set it in both `api.env` and `worker.env`); in development a missing key makes generation fail with a clear message rather than blocking startup. Model defaults to `gpt-5.6-terra`. |
 | `DOCUMENT_STORAGE_PATH` | Local directory for rendered plan PDFs when no S3 bucket is configured (default `.data/documents`). |
+| `REPEATERBOOK_APP_TOKEN` | Optional in all environments. Enables the "Find repeaters near this Circle" RepeaterBook import (see [ADR 12](docs/decisions/0012-repeaters-gear-check-scenarios.md)); without it the import UI reports "not configured" and manual repeater entry still works. |
 
 Configuration is loaded and validated exactly once, at process startup, by
 `packages/config`. Invalid or missing required values cause the process to
@@ -283,6 +291,18 @@ Session Manager, not SSH.
 - **Plan documents are PDF-only.** The `plan_documents` table and job
   payloads support an `html` format value, but only `pdf` rendering is
   implemented.
+- **Connectivity verdicts use conservative heuristics, not propagation
+  modeling.** The RF reachability engine estimates range from antenna
+  heights, TX power, and a terrain-class multiplier -- it does not consult
+  elevation data, so a ridge between two stations won't be detected. An
+  elevation-profile check is the documented follow-up (see
+  [ADR 12](docs/decisions/0012-repeaters-gear-check-scenarios.md)).
+- **RepeaterBook import requires an app token.** Without
+  `REPEATERBOOK_APP_TOKEN`, the "Find repeaters near this Circle" flow
+  reports "not configured"; manual repeater entry always works. myGMRS has
+  no public API, so RepeaterBook (which serves both ham and GMRS) is the
+  single external source (see
+  [ADR 12](docs/decisions/0012-repeaters-gear-check-scenarios.md)).
 - Spec section 27 (explicitly out of scope) was not implemented.
 
 ## Next milestone

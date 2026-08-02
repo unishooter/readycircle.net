@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { PlanAdvisory } from '@readycircle/contracts';
+import { DEFAULT_SCENARIO, type PlanAdvisory } from '@readycircle/contracts';
 import {
   generatePlanDocument,
   generatePlanVersion,
@@ -76,6 +76,17 @@ class StubAdvisoryProvider implements AdvisoryProvider {
         dayAndTime: 'Sundays at 19:00 local time',
         durationMinutes: 20,
         procedure: ['Net control opens the net.'],
+      },
+      gearRecommendations: {
+        narrative: 'Baseline gear will do for now.',
+        items: [
+          {
+            stationName: first.stationName,
+            gap: 'Marginal link to the rest of the Circle.',
+            recommendation: '50 W GMRS mobile with a base antenna at ~20 ft',
+            priority: 'recommended',
+          },
+        ],
       },
       recommendations: {
         narrative: 'A couple of gaps.',
@@ -184,6 +195,8 @@ describe('plans API', () => {
     expect(body.viewerCanManage).toBe(true);
     expect(body.latestVersion.status).toBe('generating');
     expect(body.latestVersion.versionNumber).toBe(1);
+    // No scenario supplied -> the 72-hour default preset is stored.
+    expect(body.latestVersion.scenario).toEqual(DEFAULT_SCENARIO);
     firstVersionId = body.latestVersion.id;
 
     expect(dispatcher.planJobs).toEqual([
@@ -255,22 +268,53 @@ describe('plans API', () => {
     expect(body.sections.map((s: { sectionKey: string }) => s.sectionKey)).toEqual([
       'overview',
       'roster',
+      'connectivity',
       'channel_plan',
       'role_assignments',
       'check_in_schedule',
+      'gear_recommendations',
       'recommendations',
     ]);
     const roster = body.sections.find((s: { sectionKey: string }) => s.sectionKey === 'roster');
     expect(roster.content.entries).toHaveLength(2);
+
+    // Scenario plumbing: the version echoes the stored scenario and the
+    // deterministic overview carries its human-readable description.
+    expect(body.scenario).toEqual(DEFAULT_SCENARIO);
+    const overview = body.sections.find((s: { sectionKey: string }) => s.sectionKey === 'overview');
+    expect(overview.content.scenarioDescription).toContain('power outage');
+
+    // Connectivity facts come from the deterministic RF engine. These
+    // fixture stations have no coordinates, so both are flagged unknown.
+    const connectivity = body.sections.find((s: { sectionKey: string }) => s.sectionKey === 'connectivity');
+    expect(connectivity.content.stations).toHaveLength(2);
+    expect(typeof connectivity.content.baselineRelay.pass).toBe('boolean');
+    for (const station of connectivity.content.stations) {
+      expect(station.hasLocation).toBe(false);
+      expect(station.role).toBe('unknown');
+    }
+
+    const gear = body.sections.find((s: { sectionKey: string }) => s.sectionKey === 'gear_recommendations');
+    expect(gear.content.items).toHaveLength(1);
+    expect(gear.content.items[0].recommendation).toContain('GMRS');
   });
 
   it('marks the version failed (not thrown) when the advisory provider errors', async () => {
+    const customScenario = {
+      circumstances: ['power_outage'],
+      duration: 'weeks_plus',
+      extent: 'regional',
+      notes: 'Ice storm follow-up',
+    };
     const regen = await ctx.app.inject({
       method: 'POST',
       url: `/api/v1/plans/${planId}/regenerate`,
       cookies: { rc_session: coordinator.sessionToken },
+      payload: { scenario: customScenario },
     });
     expect(regen.statusCode).toBe(201);
+    // Regenerate accepts an explicit scenario for the new version.
+    expect(regen.json().latestVersion.scenario).toEqual(customScenario);
     const failingVersionId = regen.json().latestVersion.id;
 
     const failingProvider: AdvisoryProvider = {

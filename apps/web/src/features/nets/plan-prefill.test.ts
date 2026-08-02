@@ -13,6 +13,7 @@ function makeVersion(sections: PlanVersionDetail['sections']): PlanVersionDetail
     publishedAt: '2026-08-01T00:00:00.000Z',
     createdAt: '2026-08-01T00:00:00.000Z',
     document: null,
+    scenario: null,
     sections,
   };
 }

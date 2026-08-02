@@ -7,6 +7,7 @@ import {
   planResponseSchema,
   planVersionDetailSchema,
   planVersionSummarySchema,
+  regeneratePlanSchema,
   uuidSchema,
 } from '@readycircle/contracts';
 import { requireAuth } from '../../plugins/session.js';
@@ -72,10 +73,18 @@ export const planRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/plans/:planId/regenerate',
-    { schema: { tags: ['plans'], params: planParamsSchema, response: { 201: planResponseSchema } } },
+    {
+      schema: {
+        tags: ['plans'],
+        params: planParamsSchema,
+        // nullish: clients may POST with no body at all (body parses as null).
+        body: regeneratePlanSchema.nullish(),
+        response: { 201: planResponseSchema },
+      },
+    },
     async (request, reply) => {
       const userId = requireAuth(request);
-      const plan = await service.regenerate(request.params.planId, userId, request.id);
+      const plan = await service.regenerate(request.params.planId, userId, request.id, request.body ?? {});
       reply.status(201);
       return plan;
     },

@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, CardTitle } from '@readycircle/ui';
 import { useStation, useUpdateStation } from '../../../features/stations/api.js';
+import { StationRepeatersCard } from '../../../features/repeaters/StationRepeatersCard.js';
 import {
+  StationAntennaPowerSection,
   StationCapabilitiesSection,
   StationExperienceSection,
   StationGoalsSection,
@@ -17,6 +19,7 @@ function toDraft(station: StationResponse): StationFormDraft {
   return {
     name: station.name,
     stationType: station.stationType,
+    status: station.status === 'hypothetical' ? 'hypothetical' : 'active',
     location: {
       areaLabel: station.location.areaLabel ?? undefined,
       latitude: station.location.latitude ?? undefined,
@@ -32,6 +35,10 @@ function toDraft(station: StationResponse): StationFormDraft {
     willingToActAsNetControl: station.willingToActAsNetControl,
     receiveOnly: station.receiveOnly,
     visibility: station.visibility,
+    transmitPowerWatts: station.transmitPowerWatts ?? undefined,
+    antennaType: station.antennaType ?? undefined,
+    antennaHeightFeet: station.antennaHeightFeet ?? undefined,
+    backupPower: station.backupPower,
   };
 }
 
@@ -99,10 +106,15 @@ export function StationEditPage() {
     if (!draft) return;
     await updateStation.mutateAsync({
       ...draft,
-      // Matches the create wizard's fallback: capabilities requires at
-      // least one entry server-side, and defaulting to FRS is friendlier
-      // than a raw validation error if every checkbox gets unchecked.
-      capabilities: draft.capabilities.length > 0 ? draft.capabilities : ['frs'],
+      // Matches the create wizard's fallback: defaulting to FRS is
+      // friendlier than a raw validation error if every checkbox gets
+      // unchecked. Planned stations legitimately have no capabilities yet.
+      capabilities:
+        draft.capabilities.length > 0 ? draft.capabilities : draft.status === 'hypothetical' ? [] : ['frs'],
+      // Explicit nulls clear stored values (undefined would merely omit them).
+      transmitPowerWatts: draft.transmitPowerWatts ?? null,
+      antennaType: draft.antennaType ?? null,
+      antennaHeightFeet: draft.antennaHeightFeet ?? null,
     });
     navigate(`/app/stations/${stationId}`);
   }
@@ -113,6 +125,25 @@ export function StationEditPage() {
         <h1 className="text-2xl font-semibold text-ink">Edit {station.name}</h1>
         <p className="mt-1 text-sm text-ink/60">Changes save to this station immediately when you click Save.</p>
       </div>
+
+      {station.status === 'hypothetical' ? (
+        <Card>
+          <CardTitle>Planned station</CardTitle>
+          <p className="mt-2 text-sm text-ink/60">
+            This station has a location but no equipment yet — generated plans recommend the gear to get it on
+            the air. Once it&apos;s equipped, mark it active below.
+          </p>
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              onClick={() => patchDraft({ status: 'active' })}
+              disabled={draft.status === 'active'}
+            >
+              {draft.status === 'active' ? 'Will be marked active on save' : 'Mark as active'}
+            </Button>
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <CardTitle>Identity</CardTitle>
@@ -134,6 +165,15 @@ export function StationEditPage() {
           <StationCapabilitiesSection draft={draft} onChange={patchDraft} />
         </div>
       </Card>
+
+      <Card>
+        <CardTitle>Antenna &amp; power</CardTitle>
+        <div className="mt-4">
+          <StationAntennaPowerSection draft={draft} onChange={patchDraft} />
+        </div>
+      </Card>
+
+      {stationId ? <StationRepeatersCard stationId={stationId} /> : null}
 
       <Card>
         <CardTitle>Experience &amp; authorization</CardTitle>

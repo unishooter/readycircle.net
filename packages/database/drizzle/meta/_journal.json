@@ -50,6 +50,13 @@
       "when": 1785628470256,
       "tag": "0006_blushing_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785690122648,
+      "tag": "0007_fast_avengers",
+      "breakpoints": true
     }
   ]
 }

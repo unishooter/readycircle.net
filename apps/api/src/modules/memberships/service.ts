@@ -21,6 +21,7 @@ function mapMembership(detail: MembershipDetail): MembershipResponse {
     circleId: detail.circleId,
     stationId: detail.stationId,
     stationName: detail.stationName,
+    stationStatus: detail.stationStatus,
     userId: detail.userId,
     role: detail.role,
     status: detail.status,

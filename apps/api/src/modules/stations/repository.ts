@@ -99,13 +99,18 @@ export async function createStationRecord(
       ownerId,
       name: input.name,
       stationType: input.stationType,
-      experienceLevel: input.experienceLevel,
-      authorization: input.authorization,
+      status: input.status,
+      experienceLevel: input.experienceLevel ?? null,
+      authorization: input.authorization ?? null,
       goals: input.goals,
       participatesInScheduledChecks: input.participatesInScheduledChecks,
       willingToRelay: input.willingToRelay,
       willingToActAsNetControl: input.willingToActAsNetControl,
       receiveOnly: input.receiveOnly,
+      transmitPowerWatts: input.transmitPowerWatts ?? null,
+      antennaType: input.antennaType ?? null,
+      antennaHeightFeet: input.antennaHeightFeet ?? null,
+      backupPower: input.backupPower,
     })
     .returning();
   if (!station) throw new Error('Failed to create station.');
@@ -152,6 +157,10 @@ export async function updateStationRecord(
   }
   if (input.receiveOnly !== undefined) stationFields.receiveOnly = input.receiveOnly;
   if (input.status !== undefined) stationFields.status = input.status;
+  if (input.transmitPowerWatts !== undefined) stationFields.transmitPowerWatts = input.transmitPowerWatts;
+  if (input.antennaType !== undefined) stationFields.antennaType = input.antennaType;
+  if (input.antennaHeightFeet !== undefined) stationFields.antennaHeightFeet = input.antennaHeightFeet;
+  if (input.backupPower !== undefined) stationFields.backupPower = input.backupPower;
 
   if (Object.keys(stationFields).length > 0) {
     stationFields.updatedAt = new Date();

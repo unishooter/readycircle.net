@@ -1,4 +1,5 @@
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
 // Nominatim's usage policy caps public API use at 1 request/second
 // (https://operations.osmfoundation.org/policies/nominatim/); a little
 // headroom above that.
@@ -70,4 +71,38 @@ export async function searchPlaces(query: string, { contactEmail, limit = 5 }: S
     throw new Error('Unexpected response shape from Nominatim search');
   }
   return body as NominatimResult[];
+}
+
+/**
+ * Coarse reverse geocode used by the RepeaterBook import search to derive
+ * the US state a Circle sits in from its (never exposed) station centroid.
+ * Shares the same throttle gate as forward search.
+ */
+export async function reverseGeocodeState(
+  latitude: number,
+  longitude: number,
+  { contactEmail }: { contactEmail: string },
+): Promise<string | null> {
+  await throttle();
+
+  const url = new URL(NOMINATIM_REVERSE_URL);
+  url.searchParams.set('lat', String(latitude));
+  url.searchParams.set('lon', String(longitude));
+  url.searchParams.set('format', 'json');
+  // Zoom 5 resolves to the state level -- we deliberately never ask for
+  // anything finer here.
+  url.searchParams.set('zoom', '5');
+  url.searchParams.set('email', contactEmail);
+
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': `ReadyCircle.net Station Locator (${contactEmail})`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Nominatim reverse geocode responded with status ${response.status}`);
+  }
+
+  const body = (await response.json()) as { address?: { state?: string } };
+  return body.address?.state ?? null;
 }

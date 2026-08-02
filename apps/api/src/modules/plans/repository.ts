@@ -16,7 +16,7 @@ export type PlanSectionRow = typeof planSections.$inferSelect;
 
 export async function createPlanWithFirstVersion(
   db: Database,
-  input: { circleId: string; title: string; createdBy: string },
+  input: { circleId: string; title: string; createdBy: string; scenario?: unknown },
 ): Promise<{ planId: string; versionId: string }> {
   return db.transaction(async (tx) => {
     const [plan] = await tx
@@ -27,7 +27,13 @@ export async function createPlanWithFirstVersion(
 
     const [version] = await tx
       .insert(planVersions)
-      .values({ planId: plan.id, versionNumber: 1, status: 'generating', createdBy: input.createdBy })
+      .values({
+        planId: plan.id,
+        versionNumber: 1,
+        status: 'generating',
+        createdBy: input.createdBy,
+        scenario: input.scenario ?? null,
+      })
       .returning();
     if (!version) throw new Error('Failed to create the first plan version.');
 
@@ -39,6 +45,7 @@ export async function addPlanVersion(
   db: Database,
   planId: string,
   createdBy: string,
+  scenario?: unknown,
 ): Promise<{ versionId: string; versionNumber: number }> {
   return db.transaction(async (tx) => {
     const [latest] = await tx
@@ -51,7 +58,7 @@ export async function addPlanVersion(
 
     const [version] = await tx
       .insert(planVersions)
-      .values({ planId, versionNumber, status: 'generating', createdBy })
+      .values({ planId, versionNumber, status: 'generating', createdBy, scenario: scenario ?? null })
       .returning();
     if (!version) throw new Error('Failed to create plan version.');
 

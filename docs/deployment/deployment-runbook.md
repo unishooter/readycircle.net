@@ -263,6 +263,21 @@ Before deploying a build that includes it:
    `journalctl -u readycircle-worker -f` for the `plan.generate` /
    `document.generate` job logs.
 
+### Release-specific step: repeater import (first deploy that includes it)
+
+The repeater directory works with no new configuration -- manual entry is
+always available. To enable the "Find repeaters near this Circle" import,
+request a free application token from RepeaterBook
+(https://www.repeaterbook.com/wiki/doku.php?id=api) and add
+`REPEATERBOOK_APP_TOKEN=<token>` to `/etc/readycircle/api.env` (the import
+proxy runs in the API process only; adding it to `worker.env` is harmless
+but unused). The variable is **optional in all environments**: when it is
+blank, the import UI reports "not configured" and everything else works.
+The API caches whole-state exports in memory for 24 hours per
+state + service and enforces a 5-second gap between upstream calls, per
+RepeaterBook's usage policy. See
+[ADR 12](../decisions/0012-repeaters-gear-check-scenarios.md).
+
 Once CI exists, the natural evolution is CI running `pnpm build`, packaging
 a tarball, and pushing it to S3 -- with `deploy.sh` (or a sibling script)
 pulling that tarball down instead of building in place. That's future

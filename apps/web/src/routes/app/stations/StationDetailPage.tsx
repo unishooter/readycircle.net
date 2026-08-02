@@ -1,9 +1,12 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
+  ANTENNA_TYPE_LABELS,
   AUTHORIZATION_LABELS,
+  BACKUP_POWER_LABELS,
   EXPERIENCE_LEVEL_LABELS,
   RADIO_CAPABILITY_LABELS,
   STATION_GOAL_LABELS,
+  STATION_STATUS_LABELS,
   STATION_TYPE_LABELS,
   STATION_VISIBILITY_LABELS,
 } from '@readycircle/contracts';
@@ -46,11 +49,13 @@ export function StationDetailPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-ink">{station.name}</h1>
-            <Badge tone={station.status === 'active' ? 'primary' : 'neutral'}>{station.status}</Badge>
+            <Badge tone={station.status === 'active' ? 'primary' : 'neutral'}>
+              {STATION_STATUS_LABELS[station.status] ?? station.status}
+            </Badge>
           </div>
           <p className="mt-1 text-sm text-ink/60">{STATION_TYPE_LABELS[station.stationType]}</p>
         </div>
-        {station.isOwner && station.status === 'active' ? (
+        {station.isOwner && station.status !== 'archived' ? (
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => navigate(`/app/stations/${station.id}/edit`)}>
               Edit
@@ -142,6 +147,40 @@ export function StationDetailPage() {
             <li>Receive-only: {station.receiveOnly ? 'Yes' : 'No'}</li>
           </ul>
         </Card>
+
+        {station.transmitPowerWatts || station.antennaType || station.antennaHeightFeet || station.backupPower.length > 0 ? (
+          <Card>
+            <CardTitle>Antenna &amp; power</CardTitle>
+            <dl className="mt-3 space-y-2 text-sm">
+              {station.transmitPowerWatts ? (
+                <div className="flex justify-between">
+                  <dt className="text-ink/60">Transmit power</dt>
+                  <dd className="font-medium text-ink">{station.transmitPowerWatts} W</dd>
+                </div>
+              ) : null}
+              {station.antennaType ? (
+                <div className="flex justify-between">
+                  <dt className="text-ink/60">Antenna</dt>
+                  <dd className="font-medium text-ink">{ANTENNA_TYPE_LABELS[station.antennaType]}</dd>
+                </div>
+              ) : null}
+              {station.antennaHeightFeet ? (
+                <div className="flex justify-between">
+                  <dt className="text-ink/60">Antenna height</dt>
+                  <dd className="font-medium text-ink">{station.antennaHeightFeet} ft</dd>
+                </div>
+              ) : null}
+              {station.backupPower.length > 0 ? (
+                <div className="flex justify-between">
+                  <dt className="text-ink/60">Backup power</dt>
+                  <dd className="font-medium text-ink">
+                    {station.backupPower.map((value) => BACKUP_POWER_LABELS[value]).join(', ')}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </Card>
+        ) : null}
 
         <Card>
           <CardTitle>Privacy</CardTitle>

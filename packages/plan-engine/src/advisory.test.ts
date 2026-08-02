@@ -25,6 +25,7 @@ function makeAdvisory(assignments: PlanAdvisory['roleAssignments']['assignments'
       durationMinutes: 20,
       procedure: ['Net control opens the net.'],
     },
+    gearRecommendations: { narrative: 'Baseline gear suffices.', items: [] },
     recommendations: { narrative: 'Some gaps.', items: [] },
   };
 }

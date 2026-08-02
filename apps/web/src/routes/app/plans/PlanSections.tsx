@@ -2,10 +2,17 @@ import { Badge, Card, CardTitle } from '@readycircle/ui';
 import {
   channelPlanContentSchema,
   checkInScheduleContentSchema,
+  connectivityContentSchema,
+  CONNECTIVITY_PATH_TYPE_LABELS,
+  CONNECTIVITY_VERDICT_LABELS,
+  GEAR_PRIORITY_LABELS,
+  gearRecommendationsContentSchema,
   planOverviewContentSchema,
   planRosterContentSchema,
   recommendationsContentSchema,
   roleAssignmentsContentSchema,
+  type ConnectivityVerdict,
+  type GearRecommendation,
   type PlanSectionResponse,
 } from '@readycircle/contracts';
 
@@ -31,6 +38,10 @@ function SectionBody({ section }: { section: PlanSectionResponse }) {
       return <OverviewBody content={section.content} />;
     case 'roster':
       return <RosterBody content={section.content} />;
+    case 'connectivity':
+      return <ConnectivityBody content={section.content} />;
+    case 'gear_recommendations':
+      return <GearRecommendationsBody content={section.content} />;
     case 'channel_plan':
       return <ChannelPlanBody content={section.content} />;
     case 'role_assignments':
@@ -64,6 +75,11 @@ function OverviewBody({ content }: { content: unknown }) {
         {overview.memberCount === 1 ? '' : 's'}.
       </p>
       {overview.purpose ? <p>{overview.purpose}</p> : null}
+      {overview.scenarioDescription ? (
+        <p>
+          <span className="font-medium text-ink">Scenario:</span> {overview.scenarioDescription}
+        </p>
+      ) : null}
       <p className="text-xs text-ink/50">Generated {new Date(overview.generatedAt).toLocaleString()}</p>
     </div>
   );
@@ -120,6 +136,167 @@ function RosterBody({ content }: { content: unknown }) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+const VERDICT_TONE: Record<ConnectivityVerdict, 'primary' | 'neutral' | 'amber' | 'red'> = {
+  likely: 'primary',
+  marginal: 'amber',
+  unlikely: 'red',
+  unknown: 'neutral',
+};
+
+const STATION_ROLE_LABELS: Record<string, string> = {
+  connected: 'Connected',
+  edge: 'Edge (one path)',
+  isolated: 'Isolated',
+  unknown: 'Location needed',
+};
+
+function ConnectivityBody({ content }: { content: unknown }) {
+  const parsed = connectivityContentSchema.safeParse(content);
+  if (!parsed.success) return <RawBody content={content} />;
+  const connectivity = parsed.data;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-ink/80">{connectivity.narrative}</p>
+
+      <div
+        className={`rounded-md border p-3 ${
+          connectivity.baselineRelay.pass ? 'border-navy-200 bg-navy-50/60' : 'border-amber-200 bg-amber-50/60'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <Badge tone={connectivity.baselineRelay.pass ? 'primary' : 'amber'}>
+            {connectivity.baselineRelay.pass ? 'Baseline relay: pass' : 'Baseline relay: gaps found'}
+          </Badge>
+          {connectivity.baselineRelay.hubStationNames.length > 0 ? (
+            <span className="text-xs text-ink/60">
+              Hub{connectivity.baselineRelay.hubStationNames.length === 1 ? '' : 's'}:{' '}
+              {connectivity.baselineRelay.hubStationNames.join(', ')}
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-1.5 text-sm text-ink/80">{connectivity.baselineRelay.summary}</p>
+      </div>
+
+      {connectivity.stations.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-ink/50">
+                <th className="py-2 pr-3 font-medium">Station</th>
+                <th className="py-2 pr-3 font-medium">Coverage</th>
+                <th className="py-2 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/5">
+              {connectivity.stations.map((station) => (
+                <tr key={station.stationId}>
+                  <td className="py-2 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-ink">{station.stationName}</span>
+                      {station.hypothetical ? <Badge tone="amber">Planned</Badge> : null}
+                    </div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    <Badge tone={station.role === 'connected' ? 'primary' : station.role === 'unknown' ? 'neutral' : 'amber'}>
+                      {STATION_ROLE_LABELS[station.role] ?? station.role}
+                    </Badge>
+                    <span className="ml-2 text-xs text-ink/50">
+                      reaches {station.reachableStationCount} station{station.reachableStationCount === 1 ? '' : 's'}
+                    </span>
+                  </td>
+                  <td className="py-2 text-xs text-ink/60">{station.notes.join(' ') || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {connectivity.links.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-ink/50">
+                <th className="py-2 pr-3 font-medium">Link</th>
+                <th className="py-2 pr-3 font-medium">Path</th>
+                <th className="py-2 pr-3 font-medium">Distance</th>
+                <th className="py-2 font-medium">Verdict</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/5">
+              {connectivity.links.map((link, index) => (
+                <tr key={index}>
+                  <td className="py-2 pr-3 text-ink">
+                    {link.fromStationName} &harr; {link.toStationName}
+                  </td>
+                  <td className="py-2 pr-3 text-ink/80">
+                    {CONNECTIVITY_PATH_TYPE_LABELS[link.pathType]}
+                    {link.viaRepeaterName ? (
+                      <span className="text-xs text-ink/50"> ({link.viaRepeaterName})</span>
+                    ) : null}
+                  </td>
+                  <td className="py-2 pr-3 text-ink/80">{link.distanceKm !== null ? `~${link.distanceKm} km` : '—'}</td>
+                  <td className="py-2">
+                    <Badge tone={VERDICT_TONE[link.verdict]}>{CONNECTIVITY_VERDICT_LABELS[link.verdict]}</Badge>
+                    {link.detail ? <p className="mt-0.5 text-xs text-ink/50">{link.detail}</p> : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {connectivity.gaps.length > 0 ? (
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-ink/50">Coverage gaps</p>
+          <ul className="mt-1 list-inside list-disc space-y-1 text-sm text-ink/70">
+            {connectivity.gaps.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {connectivity.repeatersConsidered.length > 0 ? (
+        <p className="text-xs text-ink/50">
+          Repeaters considered: {connectivity.repeatersConsidered.join(', ')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+const GEAR_PRIORITY_TONE: Record<GearRecommendation['priority'], 'red' | 'primary' | 'neutral'> = {
+  essential: 'red',
+  recommended: 'primary',
+  nice_to_have: 'neutral',
+};
+
+function GearRecommendationsBody({ content }: { content: unknown }) {
+  const parsed = gearRecommendationsContentSchema.safeParse(content);
+  if (!parsed.success) return <RawBody content={content} />;
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ink/80">{parsed.data.narrative}</p>
+      <ul className="space-y-2">
+        {parsed.data.items.map((item, index) => (
+          <li key={index} className="rounded-md border border-black/5 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={GEAR_PRIORITY_TONE[item.priority]}>{GEAR_PRIORITY_LABELS[item.priority]}</Badge>
+              <span className="text-sm font-medium text-ink">
+                {item.stationName ?? 'Circle-wide'}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-ink">{item.recommendation}</p>
+            <p className="mt-0.5 text-xs text-ink/60">Addresses: {item.gap}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -27,6 +27,10 @@ const baseStation: StationResponse = {
   willingToActAsNetControl: false,
   receiveOnly: false,
   visibility: 'circle',
+  transmitPowerWatts: null,
+  antennaType: null,
+  antennaHeightFeet: null,
+  backupPower: [],
   isOwner: true,
   createdAt: '2025-01-01T00:00:00.000Z',
   updatedAt: '2025-01-01T00:00:00.000Z',
@@ -37,6 +41,12 @@ let stationOverride: Partial<StationResponse> = {};
 
 vi.mock('../../../features/geocoding/api.js', () => ({
   useGeocodingSearch: () => ({ data: undefined, isFetching: false }),
+}));
+
+// The repeater access card manages its own queries/mutations; its behavior
+// is covered separately, so stub it out of the form tests.
+vi.mock('../../../features/repeaters/StationRepeatersCard.js', () => ({
+  StationRepeatersCard: () => null,
 }));
 
 vi.mock('../../../features/stations/api.js', () => ({

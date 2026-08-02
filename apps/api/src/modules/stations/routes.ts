@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { createStationSchema, listResponseSchema, stationResponseSchema, updateStationSchema, uuidSchema } from '@readycircle/contracts';
+import {
+  createStationSchema,
+  listResponseSchema,
+  setStationRepeatersSchema,
+  stationRepeaterOptionSchema,
+  stationRepeaterResponseSchema,
+  stationResponseSchema,
+  updateStationSchema,
+  uuidSchema,
+} from '@readycircle/contracts';
 import { requireAuth } from '../../plugins/session.js';
 import { StationService } from './service.js';
 
@@ -60,6 +69,54 @@ export const stationRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const userId = requireAuth(request);
       return service.archiveStation(request.params.stationId, userId, request.id);
+    },
+  );
+
+  app.get(
+    '/stations/:stationId/available-repeaters',
+    {
+      schema: {
+        tags: ['stations'],
+        params: stationParamsSchema,
+        response: { 200: listResponseSchema(stationRepeaterOptionSchema) },
+      },
+    },
+    async (request) => {
+      const userId = requireAuth(request);
+      return { items: await service.listAvailableRepeaters(request.params.stationId, userId) };
+    },
+  );
+
+  app.get(
+    '/stations/:stationId/repeaters',
+    {
+      schema: {
+        tags: ['stations'],
+        params: stationParamsSchema,
+        response: { 200: listResponseSchema(stationRepeaterResponseSchema) },
+      },
+    },
+    async (request) => {
+      const userId = requireAuth(request);
+      return { items: await service.listRepeaterLinks(request.params.stationId, userId) };
+    },
+  );
+
+  app.put(
+    '/stations/:stationId/repeaters',
+    {
+      schema: {
+        tags: ['stations'],
+        params: stationParamsSchema,
+        body: setStationRepeatersSchema,
+        response: { 200: listResponseSchema(stationRepeaterResponseSchema) },
+      },
+    },
+    async (request) => {
+      const userId = requireAuth(request);
+      return {
+        items: await service.setRepeaterLinks(request.params.stationId, userId, request.body, request.id),
+      };
     },
   );
 };

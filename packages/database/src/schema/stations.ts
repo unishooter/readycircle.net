@@ -1,4 +1,4 @@
-import { boolean, customType, doublePrecision, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, customType, doublePrecision, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from './identity.js';
 
@@ -40,6 +40,19 @@ export const stations = pgTable('stations', {
   willingToRelay: boolean('willing_to_relay').notNull().default(false),
   willingToActAsNetControl: boolean('willing_to_act_as_net_control').notNull().default(false),
   receiveOnly: boolean('receive_only').notNull().default(false),
+  /**
+   * RF attributes feeding the connectivity/gear-check analysis. All
+   * nullable: unknown values fall back to conservative defaults by station
+   * type in the RF reachability engine (packages/domain).
+   */
+  transmitPowerWatts: integer('transmit_power_watts'),
+  antennaType: text('antenna_type'),
+  antennaHeightFeet: integer('antenna_height_feet'),
+  /** e.g. ['battery','solar'] -- validated by contracts like `goals`. */
+  backupPower: text('backup_power')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

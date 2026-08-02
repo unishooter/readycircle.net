@@ -43,6 +43,13 @@ export const planVersions = pgTable('plan_versions', {
    */
   contextSnapshot: jsonb('context_snapshot'),
   /**
+   * The scenario this version was generated against (circumstances,
+   * duration, geographic extent -- see `scenarioSchema` in contracts).
+   * Nullable: versions generated before scenarios existed have none and
+   * are treated as the default 72-hour-outage preset.
+   */
+  scenario: jsonb('scenario'),
+  /**
    * Progress marker while status = 'generating':
    * 'assembling_context' | 'drafting_advisory' | 'saving'. Written by the
    * generation pipeline so the polling UI can show real activity instead of

@@ -7,20 +7,34 @@ import {
   shapeStationLocation,
 } from '@readycircle/domain';
 import type {
+  AntennaType,
+  BackupPower,
   CreateStationInput,
   ExperienceLevel,
   LocationPrecision,
   RadioCapability,
-  RecordStatus,
+  SetStationRepeatersInput,
   StationAuthorization,
   StationGoal,
+  StationRepeaterOption,
+  StationRepeaterResponse,
   StationResponse,
+  StationStatus,
   StationType,
   StationVisibility,
   UpdateStationInput,
+  RepeaterAccess,
+  RepeaterService,
 } from '@readycircle/contracts';
-import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import type { AuditService } from '../audit/service.js';
+import {
+  getRepeaterById,
+  listActiveCircleIdsForStation,
+  listLinksForStation,
+  listRepeatersForCircles,
+  replaceLinksForStation,
+} from '../repeaters/repository.js';
 import {
   archiveStationRecord,
   createStationRecord,
@@ -114,6 +128,85 @@ export class StationService {
     return this.shape(updated, true, { sharesCircle: false, isCoordinator: false });
   }
 
+  // -------------------------------------------------------------------------
+  // Repeater RX/TX links
+  // -------------------------------------------------------------------------
+
+  /** Repeaters the station could declare access to, from all its Circles. */
+  async listAvailableRepeaters(stationId: string, userId: string): Promise<StationRepeaterOption[]> {
+    const record = await this.requireRecord(stationId);
+    if (record.station.ownerId !== userId) {
+      throw new ForbiddenError('Only the station owner may view repeater options.');
+    }
+    const circleIds = await listActiveCircleIdsForStation(this.db, stationId);
+    const rows = await listRepeatersForCircles(this.db, circleIds);
+    return rows.map(({ repeater, circleName }) => ({
+      repeaterId: repeater.id,
+      name: repeater.name,
+      service: repeater.service as RepeaterService,
+      outputFrequencyMhz: repeater.outputFrequencyMhz,
+      tone: repeater.tone,
+      areaLabel: repeater.areaLabel,
+      status: repeater.status as StationRepeaterOption['status'],
+      circleId: repeater.circleId,
+      circleName,
+    }));
+  }
+
+  async listRepeaterLinks(stationId: string, userId: string): Promise<StationRepeaterResponse[]> {
+    const record = await this.requireRecord(stationId);
+    if (record.station.ownerId !== userId) {
+      throw new ForbiddenError('Only the station owner may view repeater links.');
+    }
+    const rows = await listLinksForStation(this.db, stationId);
+    return rows.map(({ link, repeater, circleName }) => ({
+      repeaterId: repeater.id,
+      access: link.access as RepeaterAccess,
+      repeaterName: repeater.name,
+      service: repeater.service as RepeaterService,
+      outputFrequencyMhz: repeater.outputFrequencyMhz,
+      circleId: repeater.circleId,
+      circleName,
+    }));
+  }
+
+  /**
+   * Replaces the station's full set of declared repeater links. Every
+   * target repeater must belong to a Circle the station is an active
+   * member of -- a station can't declare access to repeaters it has no
+   * roster relationship with.
+   */
+  async setRepeaterLinks(
+    stationId: string,
+    userId: string,
+    input: SetStationRepeatersInput,
+    requestId: string,
+  ): Promise<StationRepeaterResponse[]> {
+    const record = await this.requireRecord(stationId);
+    if (record.station.ownerId !== userId) {
+      throw new ForbiddenError('Only the station owner may change repeater links.');
+    }
+
+    const circleIds = new Set(await listActiveCircleIdsForStation(this.db, stationId));
+    for (const link of input.links) {
+      const repeater = await getRepeaterById(this.db, link.repeaterId);
+      if (!repeater || !circleIds.has(repeater.circleId)) {
+        throw new BadRequestError('One of the selected repeaters does not belong to a Circle of this station.');
+      }
+    }
+
+    await replaceLinksForStation(this.db, stationId, input.links);
+    await this.audit.record({
+      actorUserId: userId,
+      action: 'station.updated',
+      targetType: 'station',
+      targetId: stationId,
+      requestId,
+      metadata: { fields: ['repeaterLinks'], linkCount: input.links.length },
+    });
+    return this.listRepeaterLinks(stationId, userId);
+  }
+
   private async requireRecord(stationId: string): Promise<FullStationRecord> {
     const record = await getStationById(this.db, stationId);
     if (!record) throw new NotFoundError('Station not found.');
@@ -157,7 +250,7 @@ export class StationService {
       ownerId: record.station.ownerId,
       name: record.station.name,
       stationType: record.station.stationType as StationType,
-      status: record.station.status as RecordStatus,
+      status: record.station.status as StationStatus,
       location,
       capabilities: record.capabilities as RadioCapability[],
       experienceLevel: detail.experienceLevel as ExperienceLevel | null,
@@ -168,6 +261,10 @@ export class StationService {
       willingToActAsNetControl: record.station.willingToActAsNetControl,
       receiveOnly: record.station.receiveOnly,
       visibility,
+      transmitPowerWatts: record.station.transmitPowerWatts,
+      antennaType: record.station.antennaType as AntennaType | null,
+      antennaHeightFeet: record.station.antennaHeightFeet,
+      backupPower: (record.station.backupPower ?? []) as BackupPower[],
       isOwner,
       createdAt: record.station.createdAt.toISOString(),
       updatedAt: record.station.updatedAt.toISOString(),

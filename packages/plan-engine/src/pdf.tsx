@@ -2,6 +2,11 @@ import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from '@
 import {
   channelPlanContentSchema,
   checkInScheduleContentSchema,
+  connectivityContentSchema,
+  CONNECTIVITY_PATH_TYPE_LABELS,
+  CONNECTIVITY_VERDICT_LABELS,
+  GEAR_PRIORITY_LABELS,
+  gearRecommendationsContentSchema,
   planOverviewContentSchema,
   planRosterContentSchema,
   recommendationsContentSchema,
@@ -90,6 +95,7 @@ function OverviewSection({ content }: { content: unknown }) {
         {`${overview.circleName} — ${overview.circleTypeLabel}, covering ${overview.areaLabel}. ${overview.memberCount} participating station${overview.memberCount === 1 ? '' : 's'}.`}
       </Paragraph>
       {overview.purpose ? <Paragraph>{overview.purpose}</Paragraph> : null}
+      {overview.scenarioDescription ? <Paragraph>{`Scenario: ${overview.scenarioDescription}`}</Paragraph> : null}
       <Text style={[styles.paragraph, styles.muted]}>
         {`Generated ${new Date(overview.generatedAt).toLocaleDateString('en-US', { dateStyle: 'long' })}.`}
       </Text>
@@ -218,6 +224,93 @@ function RecommendationsSection({ content }: { content: unknown }) {
   );
 }
 
+function ConnectivitySection({ content }: { content: unknown }) {
+  const parsed = connectivityContentSchema.safeParse(content);
+  if (!parsed.success) return <FallbackSection content={content} />;
+  const connectivity = parsed.data;
+  // The full pairwise matrix is noisy on paper; print the problem links
+  // (anything not "likely") plus the verdict, station roles, and gaps.
+  const problemLinks = connectivity.links.filter((link) => link.verdict !== 'likely');
+  return (
+    <View>
+      <Paragraph>{connectivity.narrative}</Paragraph>
+      <Text style={styles.paragraph}>
+        <Text style={styles.label}>{`Relay test: ${connectivity.baselineRelay.pass ? 'PASS' : 'NEEDS ATTENTION'}. `}</Text>
+        {connectivity.baselineRelay.summary}
+      </Text>
+      {connectivity.stations.some((s) => s.role === 'isolated' || s.role === 'edge' || s.role === 'unknown') ? (
+        <View style={styles.itemBlock}>
+          {connectivity.stations
+            .filter((s) => s.role !== 'connected')
+            .map((s) => (
+              <Bullet key={s.stationId}>
+                {`${s.stationName}: ${
+                  s.role === 'edge'
+                    ? 'edge station (single path to the group)'
+                    : s.role === 'isolated'
+                      ? 'no reliable path to any other station'
+                      : 'location needed for coverage analysis'
+                }${s.notes.length > 0 ? ` — ${s.notes.join('; ')}` : ''}`}
+              </Bullet>
+            ))}
+        </View>
+      ) : null}
+      {problemLinks.length > 0 ? (
+        <View>
+          <View style={styles.tableHeaderRow}>
+            <Text style={[styles.tableHeaderCell, { flex: 2.4 }]}>Link</Text>
+            <Text style={[styles.tableHeaderCell, { flex: 1.2 }]}>Path</Text>
+            <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Verdict</Text>
+            <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Distance</Text>
+          </View>
+          {problemLinks.map((link, index) => (
+            <View key={index} style={styles.tableRow} wrap={false}>
+              <Text style={{ flex: 2.4, paddingRight: 4 }}>
+                {`${link.fromStationName} ↔ ${link.toStationName}${link.viaRepeaterName ? ` (via ${link.viaRepeaterName})` : ''}`}
+              </Text>
+              <Text style={{ flex: 1.2 }}>{CONNECTIVITY_PATH_TYPE_LABELS[link.pathType]}</Text>
+              <Text style={{ flex: 1 }}>{CONNECTIVITY_VERDICT_LABELS[link.verdict]}</Text>
+              <Text style={{ flex: 1 }}>{link.distanceKm !== null ? `${link.distanceKm} km` : '—'}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {connectivity.gaps.length > 0 ? (
+        <View style={{ marginTop: 6 }}>
+          <Text style={[styles.label, { marginBottom: 3 }]}>Gaps</Text>
+          {connectivity.gaps.map((gap, index) => (
+            <Bullet key={index}>{gap}</Bullet>
+          ))}
+        </View>
+      ) : null}
+      {connectivity.repeatersConsidered.length > 0 ? (
+        <Text style={[styles.muted, { marginTop: 4 }]}>
+          {`Repeaters considered: ${connectivity.repeatersConsidered.join(', ')}.`}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function GearRecommendationsSection({ content }: { content: unknown }) {
+  const parsed = gearRecommendationsContentSchema.safeParse(content);
+  if (!parsed.success) return <FallbackSection content={content} />;
+  return (
+    <View>
+      <Paragraph>{parsed.data.narrative}</Paragraph>
+      {parsed.data.items.map((item, index) => (
+        <View key={index} style={styles.itemBlock} wrap={false}>
+          <Text style={styles.label}>
+            {`${item.stationName ?? 'Circle-wide'} — ${GEAR_PRIORITY_LABELS[item.priority]}`}
+          </Text>
+          <Text style={styles.muted}>{`Gap: ${item.gap}`}</Text>
+          <Text>{item.recommendation}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function FallbackSection({ content }: { content: unknown }) {
   return <Text style={styles.muted}>{JSON.stringify(content)}</Text>;
 }
@@ -225,9 +318,11 @@ function FallbackSection({ content }: { content: unknown }) {
 const SECTION_RENDERERS: Record<string, (props: { content: unknown }) => JSX.Element> = {
   overview: OverviewSection,
   roster: RosterSection,
+  connectivity: ConnectivitySection,
   channel_plan: ChannelPlanSection,
   role_assignments: RoleAssignmentsSection,
   check_in_schedule: CheckInScheduleSection,
+  gear_recommendations: GearRecommendationsSection,
   recommendations: RecommendationsSection,
 };
 

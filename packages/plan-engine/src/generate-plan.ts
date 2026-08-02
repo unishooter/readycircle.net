@@ -1,13 +1,15 @@
 import { eq } from 'drizzle-orm';
 import { planSections, planVersions, plans, type Database } from '@readycircle/database';
 import {
+  DEFAULT_SCENARIO,
   PLAN_SECTION_ORDER,
   PLAN_SECTION_TITLES,
+  scenarioSchema,
   type PlanGenerationStage,
   type PlanSectionKey,
 } from '@readycircle/contracts';
-import { buildPlanContext } from './context.js';
-import { buildOverviewContent, buildRosterContent } from './sections.js';
+import { analyzeCircleConnectivity, buildPlanContext } from './context.js';
+import { buildConnectivityContent, buildOverviewContent, buildRosterContent } from './sections.js';
 import { validateAdvisoryStationRefs, type AdvisoryProvider } from './advisory.js';
 import type { EngineLogger } from './types.js';
 
@@ -54,13 +56,21 @@ export async function generatePlanVersion(options: GeneratePlanVersionOptions): 
 
   try {
     await setStage('assembling_context');
-    const context = await buildPlanContext(db, plan.circleId);
+    // Versions created before scenarios existed carry none; treat them as
+    // the default 72-hour-outage preset.
+    const parsedScenario = scenarioSchema.safeParse(version.scenario);
+    const scenario = parsedScenario.success ? parsedScenario.data : DEFAULT_SCENARIO;
+    const context = await buildPlanContext(db, plan.circleId, scenario);
     if (context.members.length === 0) {
       throw new Error('This Circle has no active member stations to plan for.');
     }
 
+    await setStage('analyzing_connectivity');
+    context.connectivity = await analyzeCircleConnectivity(db, plan.circleId);
+
     const overview = buildOverviewContent(context);
     const roster = buildRosterContent(context);
+    const connectivity = buildConnectivityContent(context);
 
     logger.info(
       { planVersionId, circleId: plan.circleId, memberCount: context.members.length },
@@ -73,9 +83,11 @@ export async function generatePlanVersion(options: GeneratePlanVersionOptions): 
     const sectionContents: Record<PlanSectionKey, unknown> = {
       overview,
       roster,
+      connectivity,
       channel_plan: advisory.channelPlan,
       role_assignments: advisory.roleAssignments,
       check_in_schedule: advisory.checkInSchedule,
+      gear_recommendations: advisory.gearRecommendations,
       recommendations: advisory.recommendations,
     };
 

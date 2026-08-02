@@ -8,3 +8,4 @@ export * from './membership.js';
 export * from './geocoding.js';
 export * from './plan.js';
 export * from './net.js';
+export * from './repeater.js';

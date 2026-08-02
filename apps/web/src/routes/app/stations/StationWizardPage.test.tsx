@@ -88,4 +88,27 @@ describe('StationWizardPage', () => {
     expect(screen.queryByText('1km grid square')).not.toBeInTheDocument();
     expect(screen.getByText(/location won't be shown to anyone/i)).toBeInTheDocument();
   });
+
+  it('shortens the wizard for a planned station and submits hypothetical status', async () => {
+    const user = userEvent.setup();
+    mutateAsyncMock.mockResolvedValue({ id: 'station-9' });
+    renderWizard();
+
+    await user.type(screen.getByLabelText(/station name/i), 'Future cabin station');
+    await user.click(screen.getByLabelText(/this is a planned station/i));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    // Location comes next, then straight to review -- no capability,
+    // experience, or participation steps for a station with no equipment.
+    expect(screen.getByLabelText(/general area/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('Planned (no equipment yet)')).toBeInTheDocument();
+    expect(screen.queryByText(/capabilities/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /create station/i }));
+    expect(mutateAsyncMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'hypothetical', capabilities: [] }),
+    );
+  });
 });

@@ -13,6 +13,8 @@ describe('buildOverviewContent', () => {
       purpose: 'Welfare checks during storms and outages.',
       memberCount: 3,
       generatedAt: '2026-08-01T12:00:00.000Z',
+      scenarioDescription:
+        'Citywide event: power outage, no cellular coverage, no internet; lasting up to 72 hours.',
     });
     expect(planOverviewContentSchema.parse(overview)).toEqual(overview);
   });

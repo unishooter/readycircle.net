@@ -30,14 +30,62 @@ export const STATION_TYPE_LABELS: Record<StationType, string> = {
   other: 'Other',
 };
 
-export const radioCapabilitySchema = z.enum(['frs', 'gmrs', 'amateur', 'receive_only', 'other']);
+/**
+ * Radio + comm-tech capabilities a station declares. `amateur` keeps its
+ * stored value but is labeled "dual band" -- an unlocked UV-5R-class
+ * GMRS + dual-band HT is the assumed baseline station, and dual-band
+ * *listening* is common even without an amateur license. The satellite and
+ * mesh values feed the scenario-aware connectivity analysis (paths that
+ * survive no-cell/no-internet circumstances).
+ */
+export const radioCapabilitySchema = z.enum([
+  'frs',
+  'gmrs',
+  'amateur',
+  'satellite_internet',
+  'satellite_phone',
+  'meshtastic',
+  'meshcore',
+  'receive_only',
+  'other',
+]);
 export type RadioCapability = z.infer<typeof radioCapabilitySchema>;
 export const RADIO_CAPABILITY_LABELS: Record<RadioCapability, string> = {
   frs: 'FRS (Family Radio Service)',
   gmrs: 'GMRS (General Mobile Radio Service)',
-  amateur: 'Amateur radio',
+  amateur: 'Amateur dual band (2m/70cm)',
+  satellite_internet: 'Satellite internet (Starlink or comparable)',
+  satellite_phone: 'Satellite phone / messenger',
+  meshtastic: 'Meshtastic mesh node',
+  meshcore: 'MeshCore mesh node',
   receive_only: 'Receive-only',
   other: 'Other',
+};
+
+export const antennaTypeSchema = z.enum([
+  'rubber_duck',
+  'mobile_whip',
+  'base_vertical',
+  'directional',
+  'wire',
+  'other',
+]);
+export type AntennaType = z.infer<typeof antennaTypeSchema>;
+export const ANTENNA_TYPE_LABELS: Record<AntennaType, string> = {
+  rubber_duck: 'Stock handheld antenna (rubber duck)',
+  mobile_whip: 'Mobile whip (vehicle mount)',
+  base_vertical: 'Base station vertical',
+  directional: 'Directional (Yagi or beam)',
+  wire: 'Wire antenna',
+  other: 'Other',
+};
+
+export const backupPowerSchema = z.enum(['battery', 'generator', 'solar']);
+export type BackupPower = z.infer<typeof backupPowerSchema>;
+export const BACKUP_POWER_LABELS: Record<BackupPower, string> = {
+  battery: 'Battery bank',
+  generator: 'Generator',
+  solar: 'Solar',
 };
 
 export const experienceLevelSchema = z.enum(['new', 'basic', 'comfortable', 'experienced']);
@@ -147,6 +195,19 @@ export type MemberSharingPolicy = z.infer<typeof memberSharingPolicySchema>;
 export const recordStatusSchema = z.enum(['active', 'archived']);
 export type RecordStatus = z.infer<typeof recordStatusSchema>;
 
+/**
+ * Stations additionally support 'hypothetical': a planned station with a
+ * location but no equipment yet, created so gear-up plans can analyze what
+ * to buy before anything is on the air.
+ */
+export const stationStatusSchema = z.enum(['active', 'hypothetical', 'archived']);
+export type StationStatus = z.infer<typeof stationStatusSchema>;
+export const STATION_STATUS_LABELS: Record<StationStatus, string> = {
+  active: 'Active',
+  hypothetical: 'Planned (no equipment yet)',
+  archived: 'Archived',
+};
+
 export const membershipStatusSchema = z.enum(['active', 'removed']);
 export type MembershipStatus = z.infer<typeof membershipStatusSchema>;
 
@@ -168,5 +229,9 @@ export const auditActionSchema = z.enum([
   'net.session_opened',
   'net.session_closed',
   'net.checkin_recorded',
+  'repeater.created',
+  'repeater.updated',
+  'repeater.deleted',
+  'repeater.imported',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;

@@ -5,6 +5,7 @@ import type {
   PlanResponse,
   PlanVersionDetail,
   PlanVersionSummary,
+  RegeneratePlanInput,
 } from '@readycircle/contracts';
 import { api } from '../../lib/api-client.js';
 
@@ -69,7 +70,8 @@ export function useGeneratePlan(circleId: string) {
 export function useRegeneratePlan(planId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<PlanResponse>(`/api/v1/plans/${planId}/regenerate`),
+    mutationFn: (input: RegeneratePlanInput = {}) =>
+      api.post<PlanResponse>(`/api/v1/plans/${planId}/regenerate`, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['plans'] });
     },

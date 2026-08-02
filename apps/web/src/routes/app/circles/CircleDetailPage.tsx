@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { DEFAULT_SCENARIO, type Scenario } from '@readycircle/contracts';
 import { Badge, Button, Card, CardTitle, Select } from '@readycircle/ui';
 import {
   useAddMember,
@@ -11,6 +12,9 @@ import {
 import { useStations } from '../../../features/stations/api.js';
 import { useCirclePlans, useGeneratePlan } from '../../../features/plans/api.js';
 import { useCircleNets } from '../../../features/nets/api.js';
+import { CircleRepeatersCard } from '../../../features/repeaters/CircleRepeatersCard.js';
+import { CircleGearSummaryCard } from '../../../features/plans/CircleGearSummaryCard.js';
+import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
 import { VersionStatusBadge } from '../plans/plan-status.js';
 import { formatOccurrence } from '../nets/format.js';
 
@@ -27,6 +31,8 @@ export function CircleDetailPage() {
   const removeMember = useRemoveMember(circleId ?? '');
   const generatePlan = useGeneratePlan(circleId ?? '');
   const [selectedStationId, setSelectedStationId] = useState('');
+  const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [scenario, setScenario] = useState<Scenario>(DEFAULT_SCENARIO);
 
   if (isLoading) return <p className="text-sm text-ink/50">Loading…</p>;
   if (error || !circle) {
@@ -48,8 +54,10 @@ export function CircleDetailPage() {
   const isCoordinator = circle.viewerRole === 'coordinator';
   const members = membersData?.items ?? [];
   const memberStationIds = new Set(members.map((m) => m.stationId));
+  // Planned (hypothetical) stations may join too -- they only need a location
+  // and exist precisely so the gear check can plan around them.
   const eligibleStations = (stationsData?.items ?? []).filter(
-    (s) => s.status === 'active' && !memberStationIds.has(s.id),
+    (s) => (s.status === 'active' || s.status === 'hypothetical') && !memberStationIds.has(s.id),
   );
 
   const plans = plansData?.items ?? [];
@@ -65,7 +73,8 @@ export function CircleDetailPage() {
   }
 
   async function handleGeneratePlan() {
-    const plan = await generatePlan.mutateAsync({});
+    const plan = await generatePlan.mutateAsync({ scenario });
+    setScenarioOpen(false);
     navigate(`/app/plans/${plan.id}`);
   }
 
@@ -113,13 +122,9 @@ export function CircleDetailPage() {
                   ? 'Generate a communications plan from this Circle\u2019s stations, capabilities, and roles.'
                   : 'No plan yet. A Circle coordinator can generate one.'}
               </p>
-              {isCoordinator ? (
-                <Button
-                  className="mt-4"
-                  onClick={() => void handleGeneratePlan()}
-                  disabled={generatePlan.isPending}
-                >
-                  {generatePlan.isPending ? 'Starting…' : 'Generate plan'}
+              {isCoordinator && !scenarioOpen ? (
+                <Button className="mt-4" onClick={() => setScenarioOpen(true)} disabled={generatePlan.isPending}>
+                  Generate plan
                 </Button>
               ) : null}
             </>
@@ -138,12 +143,12 @@ export function CircleDetailPage() {
                   </li>
                 ))}
               </ul>
-              {isCoordinator ? (
+              {isCoordinator && !scenarioOpen ? (
                 <Button
                   className="mt-4"
                   variant="secondary"
                   size="sm"
-                  onClick={() => void handleGeneratePlan()}
+                  onClick={() => setScenarioOpen(true)}
                   disabled={generatePlan.isPending || anyPlanGenerating}
                 >
                   Generate another plan
@@ -151,6 +156,20 @@ export function CircleDetailPage() {
               ) : null}
             </>
           )}
+          {isCoordinator && scenarioOpen ? (
+            <div className="mt-4 space-y-3 border-t border-black/5 pt-4">
+              <p className="text-xs font-medium text-ink/60">What scenario should this plan cover?</p>
+              <ScenarioPicker value={scenario} onChange={setScenario} />
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => void handleGeneratePlan()} disabled={generatePlan.isPending}>
+                  {generatePlan.isPending ? 'Starting…' : 'Generate plan'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setScenarioOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {generatePlan.isError ? (
             <p role="alert" className="mt-2 text-xs text-red-700">
               {(generatePlan.error as Error).message}
@@ -204,7 +223,11 @@ export function CircleDetailPage() {
             </div>
           ) : null}
         </Card>
+
+        <CircleGearSummaryCard plans={plans} />
       </div>
+
+      <CircleRepeatersCard circleId={circle.id} isCoordinator={isCoordinator} />
 
       <Card>
         <div className="flex items-center justify-between">
@@ -218,7 +241,10 @@ export function CircleDetailPage() {
             {members.map((member) => (
               <li key={member.id} className="flex items-center justify-between py-3">
                 <div>
-                  <p className="text-sm font-medium text-ink">{member.stationName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-ink">{member.stationName}</p>
+                    {member.stationStatus === 'hypothetical' ? <Badge tone="amber">Planned</Badge> : null}
+                  </div>
                   <p className="text-xs text-ink/50">Joined {new Date(member.joinedAt).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-3">

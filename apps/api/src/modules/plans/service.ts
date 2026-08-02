@@ -1,14 +1,17 @@
 import type { Database } from '@readycircle/database';
-import type {
-  CreatePlanInput,
-  PlanDetailResponse,
-  PlanDocumentFormat,
-  PlanDocumentStatus,
-  PlanGenerationStage,
-  PlanResponse,
-  PlanVersionDetail,
-  PlanVersionStatus,
-  PlanVersionSummary,
+import {
+  DEFAULT_SCENARIO,
+  scenarioSchema,
+  type CreatePlanInput,
+  type PlanDetailResponse,
+  type PlanDocumentFormat,
+  type PlanDocumentStatus,
+  type PlanGenerationStage,
+  type PlanResponse,
+  type PlanVersionDetail,
+  type PlanVersionStatus,
+  type PlanVersionSummary,
+  type RegeneratePlanInput,
 } from '@readycircle/contracts';
 import type { DocumentStore } from '@readycircle/plan-engine';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
@@ -62,6 +65,7 @@ export class PlanService {
       circleId,
       title,
       createdBy: userId,
+      scenario: input.scenario ?? DEFAULT_SCENARIO,
     });
 
     await this.audit.record({
@@ -77,7 +81,12 @@ export class PlanService {
     return this.shapePlan((await getPlanById(this.db, planId))!, circle.name, role);
   }
 
-  async regenerate(planId: string, userId: string, requestId: string): Promise<PlanResponse> {
+  async regenerate(
+    planId: string,
+    userId: string,
+    requestId: string,
+    input: RegeneratePlanInput = {},
+  ): Promise<PlanResponse> {
     const plan = await this.requirePlan(planId);
     const { circle, role } = await this.requireCircleAccess(plan.circleId, userId);
     if (role !== 'coordinator') {
@@ -89,7 +98,14 @@ export class PlanService {
       throw new ConflictError('A version of this plan is already being generated.');
     }
 
-    const { versionId, versionNumber } = await addPlanVersion(this.db, planId, userId);
+    // Regenerating without an explicit scenario keeps the most recent
+    // version's scenario rather than silently resetting to the default.
+    const inheritedScenario = versions
+      .map((version) => scenarioSchema.safeParse(version.scenario))
+      .find((parsed) => parsed.success)?.data;
+    const scenario = input.scenario ?? inheritedScenario ?? DEFAULT_SCENARIO;
+
+    const { versionId, versionNumber } = await addPlanVersion(this.db, planId, userId, scenario);
     await this.audit.record({
       actorUserId: userId,
       action: 'plan.generation_requested',
@@ -257,6 +273,7 @@ export class PlanService {
   }
 
   private shapeVersion(version: PlanVersionRow, document: PlanDocumentRow | null): PlanVersionSummary {
+    const parsedScenario = scenarioSchema.safeParse(version.scenario);
     return {
       id: version.id,
       planId: version.planId,
@@ -266,6 +283,7 @@ export class PlanService {
       errorMessage: version.errorMessage,
       publishedAt: version.publishedAt?.toISOString() ?? null,
       createdAt: version.createdAt.toISOString(),
+      scenario: parsedScenario.success ? parsedScenario.data : null,
       document: document
         ? {
             format: document.format as PlanDocumentFormat,

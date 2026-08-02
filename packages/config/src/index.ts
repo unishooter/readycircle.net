@@ -50,6 +50,12 @@ const envSchema = z.object({
   // out of the box in development; set a real monitored address in production.
   GEOCODING_CONTACT_EMAIL: z.string().default('support@readycircle.net'),
 
+  // RepeaterBook export API (repeater import search). Optional in every
+  // environment: without a token the import UI reports "not configured" and
+  // manual repeater entry still works. Request a free app token from
+  // RepeaterBook; their policy also requires a descriptive User-Agent.
+  REPEATERBOOK_APP_TOKEN: z.string().default(''),
+
   // AI-assisted plan generation. The key is required in production (plan
   // generation is a core feature there); in development a missing key simply
   // makes generation fail with a clear error rather than blocking startup.
@@ -96,6 +102,10 @@ export interface AppConfig {
   };
   geocoding: {
     contactEmail: string;
+  };
+  repeaterbook: {
+    appToken: string;
+    isConfigured: boolean;
   };
   openai: {
     apiKey: string;
@@ -191,6 +201,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     geocoding: {
       contactEmail: env.GEOCODING_CONTACT_EMAIL,
+    },
+    repeaterbook: {
+      appToken: env.REPEATERBOOK_APP_TOKEN,
+      isConfigured: Boolean(env.REPEATERBOOK_APP_TOKEN),
     },
     openai: {
       apiKey: env.OPENAI_API_KEY,
