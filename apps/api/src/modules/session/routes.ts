@@ -3,7 +3,9 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { SESSION_COOKIE_NAME, DevAuthProvider } from '@readycircle/auth';
 import { devLoginRequestSchema, devUserSummarySchema, listResponseSchema, sessionResponseSchema } from '@readycircle/contracts';
 import { getCurrentUserById } from '../users/repository.js';
-import { NotFoundError } from '../../lib/errors.js';
+import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
+import { getInviteOnlyAccess } from '../admin/effective-settings.js';
+import { isCircleInviteTokenValid } from '../invites/service.js';
 
 /**
  * Session, logout, and development-login routes. The `/dev-auth/*` routes
@@ -15,14 +17,15 @@ export const sessionRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get('/session', { schema: { tags: ['session'], response: { 200: sessionResponseSchema } } }, async (request) => {
     const devAuthEnabled = app.config.devAuth.enabled;
     const cognitoEnabled = app.config.cognito.isConfigured;
+    const inviteOnlyAccess = await getInviteOnlyAccess(app.db, app.config);
     if (!request.userId) {
-      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled };
+      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled, inviteOnlyAccess };
     }
     const user = await getCurrentUserById(app.db, request.userId);
     if (!user) {
-      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled };
+      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled, inviteOnlyAccess };
     }
-    return { authenticated: true, user, devAuthEnabled, cognitoEnabled };
+    return { authenticated: true, user, devAuthEnabled, cognitoEnabled, inviteOnlyAccess };
   });
 
   app.post('/logout', { schema: { tags: ['session'], response: { 200: z.object({ success: z.literal(true) }) } } }, async (request, reply) => {
@@ -47,6 +50,19 @@ export const sessionRoutes: FastifyPluginAsyncZod = async (app) => {
       '/dev-auth/login',
       { schema: { tags: ['dev-auth'], body: devLoginRequestSchema, response: { 200: sessionResponseSchema } } },
       async (request, reply) => {
+        // A brand-new dev user is being created only when no existing
+        // `userId` was selected. Existing users (returning sign-in) are
+        // never blocked, regardless of invite-only or token presence.
+        const isNewUser = !request.body.userId;
+        if (isNewUser && (await getInviteOnlyAccess(app.db, app.config))) {
+          const tokenValid = request.body.inviteToken
+            ? await isCircleInviteTokenValid(app.db, app.config, request.body.inviteToken)
+            : false;
+          if (!tokenValid) {
+            throw new ForbiddenError('This app is invite-only. Ask a Circle member for an invite link to create an account.');
+          }
+        }
+
         const { userId } = await devProvider.loginOrCreate(request.body);
         const session = await app.sessionManager.createSession(userId);
         reply.setCookie(SESSION_COOKIE_NAME, session.token, {
@@ -58,7 +74,8 @@ export const sessionRoutes: FastifyPluginAsyncZod = async (app) => {
         });
         const user = await getCurrentUserById(app.db, userId);
         if (!user) throw new NotFoundError('Development user not found after login.');
-        return { authenticated: true, user, devAuthEnabled: true, cognitoEnabled: app.config.cognito.isConfigured };
+        const inviteOnlyAccess = await getInviteOnlyAccess(app.db, app.config);
+        return { authenticated: true, user, devAuthEnabled: true, cognitoEnabled: app.config.cognito.isConfigured, inviteOnlyAccess };
       },
     );
   }

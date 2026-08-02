@@ -4,7 +4,14 @@ import { Badge, cx } from '@readycircle/ui';
 import { useLogout, useSession } from '../../features/session/api.js';
 import logoHorizontal from '../../assets/readycircle-logo-horizontal.png';
 
-const navItems = [
+interface NavItem {
+  to: string;
+  label: string;
+  end?: boolean;
+  comingSoon?: boolean;
+}
+
+const navItems: NavItem[] = [
   { to: '/app', label: 'Dashboard', end: true },
   { to: '/app/stations', label: 'My Stations' },
   { to: '/app/circles', label: 'My Radio Circles' },
@@ -15,10 +22,13 @@ const navItems = [
   { to: '/app/account', label: 'Account' },
 ];
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+const adminNavItem: NavItem = { to: '/app/admin', label: 'Admin' };
+
+function NavList({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () => void }) {
+  const items = isAdmin ? [...navItems, adminNavItem] : navItems;
   return (
     <nav className="flex flex-1 flex-col gap-1 px-3" aria-label="Main">
-      {navItems.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -48,6 +58,7 @@ export function AppShell() {
   const logout = useLogout();
   const navigate = useNavigate();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isAdmin = Boolean(session?.user?.isAdmin);
 
   async function handleLogout() {
     // A Cognito-backed session (Google or email/password) also has its own
@@ -72,7 +83,7 @@ export function AppShell() {
           <a href="/" className="mb-6 flex items-center px-4">
             <img src={logoHorizontal} alt="ReadyCircle.net" className="h-[52px] w-auto" />
           </a>
-          <NavList />
+          <NavList isAdmin={isAdmin} />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -103,7 +114,7 @@ export function AppShell() {
 
           {mobileNavOpen ? (
             <div className="border-b border-black/5 bg-white py-3 md:hidden">
-              <NavList onNavigate={() => setMobileNavOpen(false)} />
+              <NavList isAdmin={isAdmin} onNavigate={() => setMobileNavOpen(false)} />
             </div>
           ) : null}
 

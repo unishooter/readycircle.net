@@ -233,5 +233,11 @@ export const auditActionSchema = z.enum([
   'repeater.updated',
   'repeater.deleted',
   'repeater.imported',
+  'invite.created',
+  'invite.accepted',
+  'invite.revoked',
+  'admin.granted',
+  'admin.revoked',
+  'settings.updated',
 ]);
 export type AuditAction = z.infer<typeof auditActionSchema>;

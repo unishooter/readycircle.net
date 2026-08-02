@@ -26,6 +26,28 @@ export interface ProviderIdentityInput {
  * identity provider has actually confirmed -- an unverified email must
  * never be used to hijack an existing account.
  */
+/**
+ * Cheap existence check for the invite-only sign-up gate: does this exact
+ * `(provider, providerSubject)` already map to a user? Deliberately does
+ * *not* fall back to the verified-email account-linking check that
+ * `findOrCreateUserByProviderIdentity` performs -- the gate only needs to
+ * know "would calling that function create a brand-new row", and checking
+ * only the identity row keeps this a single indexed lookup with no side
+ * effects.
+ */
+export async function hasProviderIdentity(
+  db: Database,
+  provider: ProviderIdentityInput['provider'],
+  providerSubject: string,
+): Promise<boolean> {
+  const [existing] = await db
+    .select({ userId: userIdentities.userId })
+    .from(userIdentities)
+    .where(and(eq(userIdentities.provider, provider), eq(userIdentities.providerSubject, providerSubject)))
+    .limit(1);
+  return Boolean(existing);
+}
+
 export async function findOrCreateUserByProviderIdentity(
   db: Database,
   input: ProviderIdentityInput,

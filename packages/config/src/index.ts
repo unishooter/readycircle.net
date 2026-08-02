@@ -44,6 +44,12 @@ const envSchema = z.object({
   DEV_AUTH_ENABLED: booleanFromString.default(false),
   DEV_AUTH_UNSAFE_OVERRIDE: booleanFromString.default(false),
 
+  // Gates brand-new account creation behind a valid Circle invite link.
+  // Existing users can always sign back in regardless of this setting. An
+  // admin can override this at runtime via the platform_settings table; this
+  // env value is only the fallback when no override is set.
+  INVITE_ONLY_ACCESS: booleanFromString.default(false),
+
   // OpenStreetMap Nominatim's usage policy requires requests to identify the
   // application with a contact address (https://operations.osmfoundation.org/policies/nominatim/).
   // Defaults to a generic ReadyCircle address so geocoding still works
@@ -100,6 +106,8 @@ export interface AppConfig {
     enabled: boolean;
     unsafeOverrideUsed: boolean;
   };
+  /** Env-level default; the effective value may be overridden via platform_settings. */
+  inviteOnlyAccess: boolean;
   geocoding: {
     contactEmail: string;
   };
@@ -199,6 +207,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       enabled: devAuthEnabled,
       unsafeOverrideUsed: isProduction && env.DEV_AUTH_UNSAFE_OVERRIDE,
     },
+    inviteOnlyAccess: env.INVITE_ONLY_ACCESS,
     geocoding: {
       contactEmail: env.GEOCODING_CONTACT_EMAIL,
     },

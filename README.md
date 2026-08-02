@@ -153,6 +153,7 @@ notable ones:
 | `OPENAI_API_KEY`, `OPENAI_MODEL` | AI plan generation. The key is required in production (set it in both `api.env` and `worker.env`); in development a missing key makes generation fail with a clear message rather than blocking startup. Model defaults to `gpt-5.6-terra`. |
 | `DOCUMENT_STORAGE_PATH` | Local directory for rendered plan PDFs when no S3 bucket is configured (default `.data/documents`). |
 | `REPEATERBOOK_APP_TOKEN` | Optional in all environments. Enables the "Find repeaters near this Circle" RepeaterBook import (see [ADR 12](docs/decisions/0012-repeaters-gear-check-scenarios.md)); without it the import UI reports "not configured" and manual repeater entry still works. |
+| `INVITE_ONLY_ACCESS` | Default `false`. When `true`, brand-new account creation is blocked without a valid Circle invite link; existing users can always sign back in. An admin can override this at runtime from `/app/admin` -- the override takes precedence over this env value. See [ADR 13](docs/decisions/0013-invite-only-access-and-admin-panel.md). |
 
 Configuration is loaded and validated exactly once, at process startup, by
 `packages/config`. Invalid or missing required values cause the process to
@@ -203,6 +204,37 @@ which issues an HttpOnly, opaque session cookie and resolves
 "Continue with email" with the same address (or vice versa) links to the
 same account, based on a verified email match -- see the doc comment on
 `findOrCreateUserByProviderIdentity` for the exact rule.
+
+## Invite-only access and the admin panel
+
+New account creation can be gated behind a real-world introduction instead
+of being fully open:
+
+- **Toggle.** `INVITE_ONLY_ACCESS` (env, default `false`) is the fallback;
+  an admin can force it on, force it off, or clear the override entirely
+  from `/app/admin`, without a deploy. `GET /api/v1/admin/settings` shows
+  the environment default, the current override, and the effective value
+  side by side.
+- **Circle invites.** Any active Circle member -- not just coordinators --
+  can create an invite link from the Circle detail page. The link is
+  single-use (consumed the instant someone joins with it), expires after
+  14 days, and can be revoked while still pending. There is no email
+  sending yet: the inviter copies the one-time link shown at creation and
+  sends it via email or text themselves.
+- **Accepting an invite.** `/invite/:token` is a public page that previews
+  the invite (Circle name, validity), then walks the invitee through
+  sign-in/sign-up (carrying the token through Google/email OAuth or
+  dev-auth) and joining -- with an existing station if they already have
+  one, or by creating a new one in the same station wizard used everywhere
+  else, which joins them to the Circle on successful creation.
+- **Admins.** A platform-wide `isAdmin` flag on `users` (distinct from the
+  per-Circle coordinator/member roles) gates `/app/admin` and every
+  `/api/v1/admin/*` route. Every user that existed before this feature was
+  grandfathered in as an admin, and the API refuses to demote the last
+  remaining admin, so the app can never end up with zero admins.
+
+See [ADR 13](docs/decisions/0013-invite-only-access-and-admin-panel.md) for
+the full design rationale.
 
 ## Tests
 

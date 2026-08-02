@@ -15,6 +15,7 @@ import { useCircleNets } from '../../../features/nets/api.js';
 import { CircleRepeatersCard } from '../../../features/repeaters/CircleRepeatersCard.js';
 import { CircleGearSummaryCard } from '../../../features/plans/CircleGearSummaryCard.js';
 import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
+import { InviteCard } from '../../../features/invites/InviteCard.js';
 import { VersionStatusBadge } from '../plans/plan-status.js';
 import { formatOccurrence } from '../nets/format.js';
 
@@ -228,6 +229,8 @@ export function CircleDetailPage() {
       </div>
 
       <CircleRepeatersCard circleId={circle.id} isCoordinator={isCoordinator} />
+
+      <InviteCard circleId={circle.id} />
 
       <Card>
         <div className="flex items-center justify-between">

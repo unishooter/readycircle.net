@@ -8,6 +8,8 @@ const OAUTH_STATE_COOKIE_PATH = '/api/v1/auth';
 interface OAuthPendingState {
   state: string;
   codeVerifier: string;
+  /** Carried through from an invite link so a brand-new account can satisfy the invite-only gate at `/auth/callback`. */
+  inviteToken?: string;
 }
 
 /**
@@ -41,7 +43,11 @@ export function readAndClearOAuthPendingCookie(request: FastifyRequest, reply: F
   try {
     const parsed = JSON.parse(unsigned.value) as Partial<OAuthPendingState>;
     if (typeof parsed.state !== 'string' || typeof parsed.codeVerifier !== 'string') return null;
-    return { state: parsed.state, codeVerifier: parsed.codeVerifier };
+    return {
+      state: parsed.state,
+      codeVerifier: parsed.codeVerifier,
+      inviteToken: typeof parsed.inviteToken === 'string' ? parsed.inviteToken : undefined,
+    };
   } catch {
     return null;
   }

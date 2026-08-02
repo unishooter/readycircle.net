@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type * as ReactRouterDom from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { StationWizardPage } from './StationWizardPage.js';
 
@@ -16,11 +17,22 @@ vi.mock('../../../features/geocoding/api.js', () => ({
   useGeocodingSearch: () => ({ data: undefined, isFetching: false }),
 }));
 
-function renderWizard() {
+const acceptInviteMock = vi.fn();
+vi.mock('../../../features/invites/api.js', () => ({
+  useAcceptInvite: () => ({ mutateAsync: acceptInviteMock, isPending: false, isError: false }),
+}));
+
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof ReactRouterDom>('react-router-dom');
+  return { ...actual, useNavigate: () => navigateMock };
+});
+
+function renderWizard(searchPath = '') {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[`/app/stations/new${searchPath}`]}>
         <StationWizardPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -110,5 +122,24 @@ describe('StationWizardPage', () => {
     expect(mutateAsyncMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'hypothetical', capabilities: [] }),
     );
+  });
+
+  it('accepts the carried invite and navigates to the Circle after creating a station from an invite link', async () => {
+    const user = userEvent.setup();
+    mutateAsyncMock.mockResolvedValue({ id: 'station-9' });
+    acceptInviteMock.mockResolvedValue({ circleId: 'circle-42' });
+    renderWizard('?inviteToken=abc123');
+
+    await user.type(screen.getByLabelText(/station name/i), 'Invited station');
+    await user.click(screen.getByLabelText(/this is a planned station/i));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByRole('button', { name: /create station.*join circle/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /create station.*join circle/i }));
+
+    expect(mutateAsyncMock).toHaveBeenCalled();
+    expect(acceptInviteMock).toHaveBeenCalledWith({ stationId: 'station-9' });
+    expect(navigateMock).toHaveBeenCalledWith('/app/circles/circle-42');
   });
 });

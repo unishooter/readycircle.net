@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { LandingPage } from './routes/landing/LandingPage.js';
 import { LoginPage } from './routes/auth/LoginPage.js';
+import { InvitePreviewPage } from './routes/invite/InvitePreviewPage.js';
 import { RouteGuard } from './routes/app/RouteGuard.js';
 import { AppShell } from './routes/app/AppShell.js';
 import { DashboardPage } from './routes/app/DashboardPage.js';
@@ -19,6 +20,7 @@ import { PlanDetailPage } from './routes/app/plans/PlanDetailPage.js';
 import { NetsListPage } from './routes/app/nets/NetsListPage.js';
 import { NetDetailPage } from './routes/app/nets/NetDetailPage.js';
 import { NetCreatePage, NetEditPage } from './routes/app/nets/NetFormPage.js';
+import { AdminPage } from './routes/app/admin/AdminPage.js';
 import { NotFoundPage } from './routes/NotFoundPage.js';
 
 export function App() {
@@ -27,6 +29,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/invite/:token" element={<InvitePreviewPage />} />
 
         <Route element={<RouteGuard />}>
           <Route path="/app" element={<AppShell />}>
@@ -55,6 +58,7 @@ export function App() {
             />
             <Route path="privacy" element={<PrivacyPage />} />
             <Route path="account" element={<AccountPage />} />
+            <Route path="admin" element={<AdminPage />} />
           </Route>
         </Route>
 

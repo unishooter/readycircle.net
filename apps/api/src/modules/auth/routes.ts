@@ -7,8 +7,15 @@ import {
   findOrCreateUserByProviderIdentity,
   generatePkcePair,
   generateState,
+  hasProviderIdentity,
 } from '@readycircle/auth';
+import { getInviteOnlyAccess } from '../admin/effective-settings.js';
+import { isCircleInviteTokenValid } from '../invites/service.js';
 import { readAndClearOAuthPendingCookie, setOAuthPendingCookie } from './oauth-state.js';
+
+const startAuthorizeQuerySchema = z.object({
+  inviteToken: z.string().optional(),
+});
 
 const callbackQuerySchema = z.object({
   code: z.string().optional(),
@@ -41,16 +48,28 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
   }
 
   function startAuthorize(identityProvider?: 'Google') {
-    return async (_request: unknown, reply: FastifyReply) => {
+    return async (request: { query: z.infer<typeof startAuthorizeQuerySchema> }, reply: FastifyReply) => {
       const state = generateState();
       const { codeVerifier, codeChallenge } = generatePkcePair();
-      setOAuthPendingCookie(reply, { state, codeVerifier }, app.config.isProduction);
+      setOAuthPendingCookie(
+        reply,
+        { state, codeVerifier, inviteToken: request.query.inviteToken },
+        app.config.isProduction,
+      );
       return reply.redirect(cognito.getAuthorizationUrl({ state, codeChallenge, identityProvider }));
     };
   }
 
-  app.get('/auth/google', { schema: { tags: ['auth'], hide: true } }, startAuthorize('Google'));
-  app.get('/auth/login', { schema: { tags: ['auth'], hide: true } }, startAuthorize());
+  app.get(
+    '/auth/google',
+    { schema: { tags: ['auth'], hide: true, querystring: startAuthorizeQuerySchema } },
+    startAuthorize('Google'),
+  );
+  app.get(
+    '/auth/login',
+    { schema: { tags: ['auth'], hide: true, querystring: startAuthorizeQuerySchema } },
+    startAuthorize(),
+  );
 
   app.get(
     '/auth/callback',
@@ -70,6 +89,25 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
 
       try {
         const identity = await cognito.handleCallback({ code: request.query.code, codeVerifier: pending.codeVerifier });
+
+        // Existing users (returning sign-in) are never blocked, regardless
+        // of invite-only or token presence -- only a brand-new account
+        // needs a valid invite. Checked *before* creating anything so a
+        // rejected sign-up leaves no orphaned user/identity rows.
+        const isReturningUser = await hasProviderIdentity(app.db, identity.provider, identity.providerSubject);
+        if (!isReturningUser) {
+          const inviteOnly = await getInviteOnlyAccess(app.db, app.config);
+          if (inviteOnly) {
+            const tokenValid = pending.inviteToken
+              ? await isCircleInviteTokenValid(app.db, app.config, pending.inviteToken)
+              : false;
+            if (!tokenValid) {
+              request.log.info('oauth sign-up rejected: invite-only access is enabled and no valid invite was provided');
+              return redirectToLoginWithError(reply, 'invite_required');
+            }
+          }
+        }
+
         const { userId } = await findOrCreateUserByProviderIdentity(app.db, identity);
         const session = await app.sessionManager.createSession(userId);
         reply.setCookie(SESSION_COOKIE_NAME, session.token, {

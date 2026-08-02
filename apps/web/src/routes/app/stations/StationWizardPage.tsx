@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AUTHORIZATION_LABELS,
   RADIO_CAPABILITY_LABELS,
@@ -8,6 +8,7 @@ import {
 } from '@readycircle/contracts';
 import { Button, Card, CheckboxOption, Stepper } from '@readycircle/ui';
 import { useCreateStation } from '../../../features/stations/api.js';
+import { useAcceptInvite } from '../../../features/invites/api.js';
 import {
   StationAntennaPowerSection,
   StationCapabilitiesSection,
@@ -53,7 +54,13 @@ const initialDraft: StationFormDraft = {
 
 export function StationWizardPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Present when arriving from an invite link (see InvitePreviewPage) --
+  // on save, the new station joins that Circle instead of landing on the
+  // ordinary station detail page.
+  const inviteToken = searchParams.get('inviteToken') ?? undefined;
   const createStation = useCreateStation();
+  const acceptInvite = useAcceptInvite(inviteToken);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<StationFormDraft>(initialDraft);
 
@@ -77,6 +84,11 @@ export function StationWizardPage() {
       capabilities:
         draft.capabilities.length > 0 ? draft.capabilities : isPlanned ? [] : ['frs'],
     });
+    if (inviteToken) {
+      const invite = await acceptInvite.mutateAsync({ stationId: created.id });
+      navigate(`/app/circles/${invite.circleId}`);
+      return;
+    }
     navigate(`/app/stations/${created.id}`);
   }
 
@@ -174,6 +186,11 @@ export function StationWizardPage() {
                 {(createStation.error as Error).message}
               </p>
             ) : null}
+            {acceptInvite.isError ? (
+              <p role="alert" className="text-red-700">
+                {(acceptInvite.error as Error).message}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </Card>
@@ -183,8 +200,12 @@ export function StationWizardPage() {
           Back
         </Button>
         {isLastStep ? (
-          <Button onClick={() => void handleSubmit()} disabled={createStation.isPending}>
-            {createStation.isPending ? 'Saving…' : 'Create station'}
+          <Button onClick={() => void handleSubmit()} disabled={createStation.isPending || acceptInvite.isPending}>
+            {createStation.isPending || acceptInvite.isPending
+              ? 'Saving…'
+              : inviteToken
+                ? 'Create station & join Circle'
+                : 'Create station'}
           </Button>
         ) : (
           <Button onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))} disabled={!canProceed}>

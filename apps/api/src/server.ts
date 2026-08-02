@@ -27,6 +27,8 @@ import { geocodingRoutes } from './modules/geocoding/routes.js';
 import { planRoutes } from './modules/plans/routes.js';
 import { netRoutes } from './modules/nets/routes.js';
 import { repeaterRoutes } from './modules/repeaters/routes.js';
+import { inviteRoutes } from './modules/invites/routes.js';
+import { adminRoutes } from './modules/admin/routes.js';
 import { createJobDispatcher, type JobDispatcher } from './modules/plans/dispatcher.js';
 import { createDocumentStore, type DocumentStore } from '@readycircle/plan-engine';
 
@@ -107,6 +109,8 @@ export function buildServer({ config, db, planJobDispatcher, planDocumentStore }
   app.register(planRoutes, { prefix: '/api/v1' });
   app.register(netRoutes, { prefix: '/api/v1' });
   app.register(repeaterRoutes, { prefix: '/api/v1' });
+  app.register(inviteRoutes, { prefix: '/api/v1' });
+  app.register(adminRoutes, { prefix: '/api/v1' });
 
   return app;
 }

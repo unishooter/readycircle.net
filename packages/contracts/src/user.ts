@@ -7,6 +7,8 @@ export const currentUserSchema = z.object({
   email: z.string().email().nullable(),
   emailVerified: z.boolean(),
   authProvider: z.enum(['dev', 'google', 'apple', 'email_password']),
+  /** Platform-wide admin flag, distinct from Circle coordinator/member roles. */
+  isAdmin: z.boolean(),
   createdAt: z.string(),
 });
 export type CurrentUser = z.infer<typeof currentUserSchema>;

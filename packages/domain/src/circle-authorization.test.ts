@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { canEditCircle, canManageMembers, canViewCircle, wouldLeaveCircleWithoutCoordinator } from './circle-authorization.js';
+import {
+  canCreateCircleInvite,
+  canEditCircle,
+  canManageMembers,
+  canViewCircle,
+  wouldLeaveCircleWithoutCoordinator,
+} from './circle-authorization.js';
 
 describe('circle role predicates', () => {
   it('only coordinators may edit or manage members', () => {
@@ -12,6 +18,12 @@ describe('circle role predicates', () => {
   it('nonmembers cannot view circle details', () => {
     expect(canViewCircle(null)).toBe(false);
     expect(canViewCircle('member')).toBe(true);
+  });
+
+  it('any active member may create a circle invite, not just coordinators', () => {
+    expect(canCreateCircleInvite(null)).toBe(false);
+    expect(canCreateCircleInvite('member')).toBe(true);
+    expect(canCreateCircleInvite('coordinator')).toBe(true);
   });
 });
 

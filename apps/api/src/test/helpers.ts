@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { loadConfig } from '@readycircle/config';
-import { createDatabase, users, type Database } from '@readycircle/database';
+import { circles, createDatabase, users, type Database } from '@readycircle/database';
 import { buildServer, type BuildServerOptions } from '../server.js';
 
 export interface TestContext {
@@ -70,4 +70,15 @@ export async function loginAsNewDevUser(app: FastifyInstance, displayName: strin
 /** Cascade-deletes a user and everything owned by it, keeping tests self-cleaning. */
 export async function deleteTestUser(db: Database, userId: string): Promise<void> {
   await db.delete(users).where(eq(users.id, userId));
+}
+
+/**
+ * Cascade-deletes a Circle, including its memberships and invites (via
+ * `onDelete: 'cascade'` on `circle_id`). Call this before `deleteTestUser`
+ * for any user who created or was invited through this Circle -- otherwise
+ * `circle_invitations.invited_by` (intentionally `NOT NULL`, no cascade) can
+ * block the user delete.
+ */
+export async function deleteTestCircle(db: Database, circleId: string): Promise<void> {
+  await db.delete(circles).where(eq(circles.id, circleId));
 }

@@ -17,6 +17,7 @@ export async function getCurrentUserById(db: Database, userId: string): Promise<
     displayName: row.displayName,
     email: row.email,
     emailVerified: row.emailVerified,
+    isAdmin: row.isAdmin,
     authProvider: (identity?.provider as CurrentUser['authProvider']) ?? 'dev',
     createdAt: row.createdAt.toISOString(),
   };

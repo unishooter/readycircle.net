@@ -96,9 +96,14 @@ export const circleRoleAssignments = pgTable(
 );
 
 /**
- * Table exists to support the documented (but not yet implemented) email
- * invitation flow -- see docs/architecture/circle-invitations.md. No API
- * routes read or write this table in this milestone.
+ * A single-use, signed invite link that lets an invitee join a Circle
+ * without going through the plain "add my station by circle ID" flow --
+ * any active member may create one (see `canCreateCircleInvite` in
+ * packages/domain). Only a hash of the raw token is ever stored, the same
+ * discipline as `sessions.tokenHash`; the raw token is shown to the
+ * inviter exactly once, at creation time. `type` future-proofs other kinds
+ * of invite (e.g. a direct admin invite with no Circle) without another
+ * migration -- today only `'circle_join'` exists.
  */
 export const circleInvitations = pgTable(
   'circle_invitations',
@@ -107,17 +112,23 @@ export const circleInvitations = pgTable(
     circleId: uuid('circle_id')
       .notNull()
       .references(() => circles.id, { onDelete: 'cascade' }),
+    type: text('type').notNull().default('circle_join'),
+    /** Free-text label the inviter sets for their own tracking; never validated against the invitee's account. */
     invitedEmail: text('invited_email'),
-    invitedUserId: uuid('invited_user_id').references(() => users.id),
     invitedBy: uuid('invited_by')
       .notNull()
       .references(() => users.id),
+    /** 'pending' | 'accepted' | 'revoked'. Expiry is derived from `expiresAt` at read time, never stored. */
     status: text('status').notNull().default('pending'),
-    token: text('token'),
+    tokenHash: text('token_hash').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedByUserId: uuid('accepted_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revokedByUserId: uuid('revoked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   },
   (table) => ({
-    tokenUnique: uniqueIndex('circle_invitations_token_idx').on(table.token),
+    tokenHashUnique: uniqueIndex('circle_invitations_token_hash_idx').on(table.tokenHash),
   }),
 );

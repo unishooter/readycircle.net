@@ -12,6 +12,11 @@ export function canManageMembers(viewerRole: CircleRole | null): boolean {
   return viewerRole === 'coordinator';
 }
 
+/** Any active member may generate a Circle invite link -- not just coordinators. */
+export function canCreateCircleInvite(viewerRole: CircleRole | null): boolean {
+  return viewerRole !== null;
+}
+
 /**
  * Every circle must retain at least one active coordinator. Call this
  * before demoting or removing a coordinator, passing the count of *other*

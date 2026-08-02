@@ -278,6 +278,33 @@ state + service and enforces a 5-second gap between upstream calls, per
 RepeaterBook's usage policy. See
 [ADR 12](../decisions/0012-repeaters-gear-check-scenarios.md).
 
+### Release-specific step: invite-only access and admin panel (first deploy that includes it)
+
+This migration (`0008_invite_only_access_and_admin`) grandfathers **every**
+existing user into the new platform-wide admin role
+(`UPDATE users SET is_admin = true`) -- there was no admin concept before
+it, so this is the only way to avoid shipping a build with zero admins and
+no way to promote one. No env var change is required: `INVITE_ONLY_ACCESS`
+defaults to `false`, so sign-up stays open until an admin turns it on.
+
+1. After `deploy.sh` runs the migration step, confirm the grandfather
+   backfill actually ran as expected -- from the instance (or anywhere with
+   `DATABASE_URL` set to the production connection string):
+   ```bash
+   psql "$DATABASE_URL" -c "select count(*) as total_users, count(*) filter (where is_admin) as admins from users;"
+   ```
+   `admins` should equal `total_users` immediately after this deploy (every
+   pre-existing account was grandfathered in). It's expected to diverge
+   later as new users sign up without the admin flag.
+2. Sign in as one of the grandfathered accounts and confirm `/app/admin` is
+   reachable and shows the user list -- this is the fastest way to verify
+   the flag actually took effect for a real production account, not just
+   in the database.
+3. Decide whether to turn `INVITE_ONLY_ACCESS` on immediately or leave
+   sign-up open for now; either way it's a runtime toggle from `/app/admin`
+   afterward, not a redeploy. See
+   [ADR 13](../decisions/0013-invite-only-access-and-admin-panel.md).
+
 Once CI exists, the natural evolution is CI running `pnpm build`, packaging
 a tarball, and pushing it to S3 -- with `deploy.sh` (or a sibling script)
 pulling that tarball down instead of building in place. That's future

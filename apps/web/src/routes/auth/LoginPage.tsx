@@ -7,6 +7,7 @@ import logoHorizontal from '../../assets/readycircle-logo-horizontal.png';
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   oauth_cancelled: 'Sign-in was cancelled.',
   oauth_failed: "Something went wrong signing you in. Please try again, or use a different sign-in option.",
+  invite_required: 'This app is currently invite-only, and that link is missing or no longer valid. Ask a Circle member for an invite link, or sign in if you already have an account.',
 };
 
 function GoogleIcon() {
@@ -158,6 +159,8 @@ export function LoginPage() {
 
   const errorCode = searchParams.get('error');
   const errorMessage = errorCode ? (OAUTH_ERROR_MESSAGES[errorCode] ?? OAUTH_ERROR_MESSAGES.oauth_failed) : null;
+  const hasInviteToken = Boolean(searchParams.get('inviteToken'));
+  const showInviteOnlyNotice = Boolean(session?.inviteOnlyAccess) && !hasInviteToken && !errorMessage;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper px-4 py-12">
@@ -172,6 +175,13 @@ export function LoginPage() {
         {errorMessage ? (
           <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
+          </p>
+        ) : null}
+
+        {showInviteOnlyNotice ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            This app is currently invite-only -- ask a Circle member for an invite link. Already have an account?
+            You can still sign in below.
           </p>
         ) : null}
 

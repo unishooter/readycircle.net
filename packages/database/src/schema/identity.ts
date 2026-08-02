@@ -15,6 +15,13 @@ export const users = pgTable(
     emailVerified: boolean('email_verified').notNull().default(false),
     /** Descriptive label shown only in the development login picker. Always null in production data. */
     devPersona: text('dev_persona'),
+    /**
+     * Platform-wide admin flag (distinct from Circle coordinator/member
+     * roles). Admins manage other admins and platform settings like
+     * invite-only access. At least one admin must always exist -- see
+     * `wouldLeaveAppWithoutAdmin` in packages/domain.
+     */
+    isAdmin: boolean('is_admin').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

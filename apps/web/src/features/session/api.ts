@@ -54,6 +54,7 @@ export function useLogout() {
         user: null,
         devAuthEnabled: previous?.devAuthEnabled ?? true,
         cognitoEnabled: previous?.cognitoEnabled ?? false,
+        inviteOnlyAccess: previous?.inviteOnlyAccess ?? false,
       }));
       queryClient.invalidateQueries();
     },
