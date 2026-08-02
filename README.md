@@ -8,9 +8,11 @@ neighborhood, family, or organization group that communicates together),
 and generate a shared **communications plan** -- roster, channel plan, role
 assignments, check-in schedule, and gap analysis, with a printable PDF --
 for staying in touch when cellular, internet, or power service goes down.
-This repository contains the full application: a public landing page, an
-authenticated app shell, station and Radio Circle management, AI-assisted
-plan generation, and the backend/infrastructure those features run on.
+**Nets** turn the plan into a habit: recurring scheduled on-air check-ins
+with session logs and per-station participation stats. This repository
+contains the full application: a public landing page, an authenticated app
+shell, station and Radio Circle management, AI-assisted plan generation,
+nets, and the backend/infrastructure those features run on.
 
 ## Architecture
 
@@ -48,7 +50,8 @@ later if a module needs to scale independently.
   shared by the API and the web app, so request/response shapes can never
   drift between frontend and backend.
 - **`packages/domain`** -- pure business rules (authorization predicates,
-  visibility shaping) with no I/O, so they're trivial to unit test.
+  visibility shaping, the net recurrence/occurrence engine) with no I/O,
+  so they're trivial to unit test.
 - **`packages/plan-engine`** -- the plan-generation pipeline: Circle context
   builder, deterministic section builders, an `AdvisoryProvider` interface
   with an OpenAI Structured Outputs implementation, PDF rendering
@@ -267,9 +270,16 @@ Session Manager, not SSH.
   [ADR 9](docs/decisions/0009-mgrs-location-capture.md)). Radio Circles
   still use a plain free-text area/grid field, since this milestone's scope
   was stations only.
-- **No equipment inventory, nets, or contacts UI yet.** These are visible
-  as "coming in a future milestone" placeholders in the app shell. (Plans
-  shipped -- see [ADR 10](docs/decisions/0010-hybrid-ai-plan-generation.md).)
+- **No equipment inventory or contacts UI yet.** These are visible as
+  "coming in a future milestone" placeholders in the app shell. (Plans and
+  Nets shipped -- see
+  [ADR 10](docs/decisions/0010-hybrid-ai-plan-generation.md) and
+  [ADR 11](docs/decisions/0011-nets-computed-occurrences.md).)
+- **Net reminders are not sent.** The nets feature (scheduled check-ins,
+  session logs, participation stats) is live, but the reminder hook is a
+  no-op stub -- the SES-backed scheduled reminder job is deferred until
+  email sending exists (see
+  [ADR 11](docs/decisions/0011-nets-computed-occurrences.md)).
 - **Plan documents are PDF-only.** The `plan_documents` table and job
   payloads support an `html` format value, but only `pdf` rendering is
   implemented.
@@ -288,8 +298,10 @@ The natural next slice of work, building on this foundation:
    Also: build the "find nearby stations" feature on top of the
    `findNearbyStations` groundwork already in place
    (`apps/api/src/modules/stations/nearby.ts`).
-3. Build the Nets and Contacts surfaces in `apps/web` that are currently
-   "coming soon" placeholders -- the plan's check-in schedule section is a
-   natural input for scheduled nets.
-4. Add equipment inventory to the station detail page.
-5. Add Apple sign-in as a second Cognito federated identity provider.
+3. Set up SES email sending and turn the `NetReminderService` stub into a
+   scheduled worker job (`net.reminder`) that reminds members before each
+   computed net occurrence.
+4. Build the Contacts surface in `apps/web` that is currently a
+   "coming soon" placeholder.
+5. Add equipment inventory to the station detail page.
+6. Add Apple sign-in as a second Cognito federated identity provider.

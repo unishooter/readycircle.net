@@ -25,6 +25,7 @@ import { circleRoutes } from './modules/circles/routes.js';
 import { membershipRoutes } from './modules/memberships/routes.js';
 import { geocodingRoutes } from './modules/geocoding/routes.js';
 import { planRoutes } from './modules/plans/routes.js';
+import { netRoutes } from './modules/nets/routes.js';
 import { createJobDispatcher, type JobDispatcher } from './modules/plans/dispatcher.js';
 import { createDocumentStore, type DocumentStore } from '@readycircle/plan-engine';
 
@@ -103,6 +104,7 @@ export function buildServer({ config, db, planJobDispatcher, planDocumentStore }
   app.register(membershipRoutes, { prefix: '/api/v1' });
   app.register(geocodingRoutes, { prefix: '/api/v1' });
   app.register(planRoutes, { prefix: '/api/v1' });
+  app.register(netRoutes, { prefix: '/api/v1' });
 
   return app;
 }

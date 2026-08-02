@@ -10,7 +10,9 @@ import {
 } from '../../../features/circles/api.js';
 import { useStations } from '../../../features/stations/api.js';
 import { useCirclePlans, useGeneratePlan } from '../../../features/plans/api.js';
+import { useCircleNets } from '../../../features/nets/api.js';
 import { VersionStatusBadge } from '../plans/plan-status.js';
+import { formatOccurrence } from '../nets/format.js';
 
 export function CircleDetailPage() {
   const { circleId } = useParams<{ circleId: string }>();
@@ -19,6 +21,7 @@ export function CircleDetailPage() {
   const { data: membersData, isLoading: membersLoading } = useCircleMembers(circleId);
   const { data: stationsData } = useStations();
   const { data: plansData } = useCirclePlans(circleId);
+  const { data: netsData } = useCircleNets(circleId);
   const addMember = useAddMember(circleId ?? '');
   const updateMember = useUpdateMember(circleId ?? '');
   const removeMember = useRemoveMember(circleId ?? '');
@@ -51,6 +54,9 @@ export function CircleDetailPage() {
 
   const plans = plansData?.items ?? [];
   const anyPlanGenerating = plans.some((plan) => plan.latestVersion?.status === 'generating');
+  const nets = netsData?.items ?? [];
+  // Newest published plan version, used to prefill a net's schedule/channel.
+  const publishedPlan = plans.find((plan) => plan.latestVersion?.status === 'published');
 
   async function handleAddMember() {
     if (!selectedStationId) return;
@@ -149,6 +155,52 @@ export function CircleDetailPage() {
             <p role="alert" className="mt-2 text-xs text-red-700">
               {(generatePlan.error as Error).message}
             </p>
+          ) : null}
+        </Card>
+
+        <Card className="sm:col-span-2">
+          <CardTitle>Nets</CardTitle>
+          {nets.length === 0 ? (
+            <p className="mt-3 text-sm text-ink/60">
+              {isCoordinator
+                ? 'Schedule a recurring on-air check-in so members can practice and log participation.'
+                : 'No nets scheduled yet. A Circle coordinator can schedule one.'}
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {nets.map((net) => (
+                <li key={net.id}>
+                  <Link
+                    to={`/app/nets/${net.id}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-black/5 px-3 py-2 hover:border-navy-300 hover:bg-navy-50"
+                  >
+                    <span className="truncate text-sm font-medium text-ink">{net.name}</span>
+                    <span className="shrink-0 text-xs text-ink/50">
+                      {net.nextOccurrences[0]
+                        ? `Next: ${formatOccurrence(net.nextOccurrences[0])}`
+                        : net.schedule.frequencyLabel}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          {isCoordinator ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Link to={`/app/circles/${circle.id}/nets/new`}>
+                <Button variant="secondary" size="sm">
+                  Schedule a net
+                </Button>
+              </Link>
+              {publishedPlan?.latestVersion ? (
+                <Link
+                  to={`/app/circles/${circle.id}/nets/new?planId=${publishedPlan.id}&versionId=${publishedPlan.latestVersion.id}`}
+                  className="text-xs font-medium text-navy-700 hover:underline"
+                >
+                  Create from published plan
+                </Link>
+              ) : null}
+            </div>
           ) : null}
         </Card>
       </div>

@@ -16,6 +16,9 @@ import { CircleWizardPage } from './routes/app/circles/CircleWizardPage.js';
 import { CircleDetailPage } from './routes/app/circles/CircleDetailPage.js';
 import { PlansListPage } from './routes/app/plans/PlansListPage.js';
 import { PlanDetailPage } from './routes/app/plans/PlanDetailPage.js';
+import { NetsListPage } from './routes/app/nets/NetsListPage.js';
+import { NetDetailPage } from './routes/app/nets/NetDetailPage.js';
+import { NetCreatePage, NetEditPage } from './routes/app/nets/NetFormPage.js';
 import { NotFoundPage } from './routes/NotFoundPage.js';
 
 export function App() {
@@ -35,17 +38,12 @@ export function App() {
             <Route path="circles" element={<CirclesListPage />} />
             <Route path="circles/new" element={<CircleWizardPage />} />
             <Route path="circles/:circleId" element={<CircleDetailPage />} />
+            <Route path="circles/:circleId/nets/new" element={<NetCreatePage />} />
             <Route path="plans" element={<PlansListPage />} />
             <Route path="plans/:planId" element={<PlanDetailPage />} />
-            <Route
-              path="nets"
-              element={
-                <ComingSoonPage
-                  title="Nets"
-                  description="Scheduled practice check-ins and net logs are coming in a future milestone."
-                />
-              }
-            />
+            <Route path="nets" element={<NetsListPage />} />
+            <Route path="nets/:netId" element={<NetDetailPage />} />
+            <Route path="nets/:netId/edit" element={<NetEditPage />} />
             <Route
               path="contacts"
               element={

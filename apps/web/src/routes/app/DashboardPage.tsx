@@ -3,16 +3,24 @@ import { Badge, Card, CardDescription, CardTitle, EmptyState } from '@readycircl
 import { useStations } from '../../features/stations/api.js';
 import { useCircles } from '../../features/circles/api.js';
 import { usePlans } from '../../features/plans/api.js';
+import { useNets } from '../../features/nets/api.js';
 import { VersionStatusBadge } from './plans/plan-status.js';
+import { formatOccurrence } from './nets/format.js';
 
 export function DashboardPage() {
   const { data: stationsData, isLoading: stationsLoading } = useStations();
   const { data: circlesData, isLoading: circlesLoading } = useCircles();
   const { data: plansData, isLoading: plansLoading } = usePlans();
+  const { data: netsData, isLoading: netsLoading } = useNets();
 
   const stations = stationsData?.items ?? [];
   const circles = circlesData?.items ?? [];
   const plans = plansData?.items ?? [];
+
+  // Nets with a computed next occurrence, soonest first.
+  const upcomingNets = (netsData?.items ?? [])
+    .filter((net) => net.nextOccurrences.length > 0)
+    .sort((a, b) => (a.nextOccurrences[0] ?? '').localeCompare(b.nextOccurrences[0] ?? ''));
 
   const nextAction = stations.length === 0
     ? { label: 'Add your first station', to: '/app/stations/new' }
@@ -156,8 +164,33 @@ export function DashboardPage() {
         </Card>
 
         <Card>
-          <CardTitle>Upcoming practice</CardTitle>
-          <CardDescription>Scheduled check-ins and practice nets are coming in a future milestone.</CardDescription>
+          <div className="flex items-center justify-between">
+            <CardTitle>Upcoming practice</CardTitle>
+            <Link to="/app/nets" className="text-sm font-medium text-navy-700 hover:text-navy-800">
+              View all
+            </Link>
+          </div>
+          {netsLoading ? (
+            <p className="mt-4 text-sm text-ink/50">Loading…</p>
+          ) : upcomingNets.length === 0 ? (
+            <CardDescription>
+              No nets scheduled yet. Open one of your Radio Circles and choose &quot;Schedule a net&quot;.
+            </CardDescription>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {upcomingNets.slice(0, 3).map((net) => (
+                <li key={net.id}>
+                  <Link
+                    to={`/app/nets/${net.id}`}
+                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-navy-300 hover:bg-navy-50"
+                  >
+                    <span className="text-sm font-medium text-ink">{net.name}</span>
+                    <Badge tone="primary">{formatOccurrence(net.nextOccurrences[0] ?? '')}</Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
 
