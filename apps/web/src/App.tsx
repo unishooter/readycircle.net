@@ -14,6 +14,7 @@ import { StationEditPage } from './routes/app/stations/StationEditPage.js';
 import { CirclesListPage } from './routes/app/circles/CirclesListPage.js';
 import { CircleWizardPage } from './routes/app/circles/CircleWizardPage.js';
 import { CircleDetailPage } from './routes/app/circles/CircleDetailPage.js';
+import { CircleEditPage } from './routes/app/circles/CircleEditPage.js';
 import { PlansListPage } from './routes/app/plans/PlansListPage.js';
 import { PlanDetailPage } from './routes/app/plans/PlanDetailPage.js';
 import { NetsListPage } from './routes/app/nets/NetsListPage.js';
@@ -41,6 +42,7 @@ export function App() {
             <Route path="circles" element={<CirclesListPage />} />
             <Route path="circles/new" element={<CircleWizardPage />} />
             <Route path="circles/:circleId" element={<CircleDetailPage />} />
+            <Route path="circles/:circleId/edit" element={<CircleEditPage />} />
             <Route path="circles/:circleId/nets/new" element={<NetCreatePage />} />
             <Route path="plans" element={<PlansListPage />} />
             <Route path="plans/:planId" element={<PlanDetailPage />} />

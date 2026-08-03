@@ -82,12 +82,21 @@ export function CircleDetailPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-ink">{circle.name}</h1>
-          <Badge tone={circle.status === 'active' ? 'primary' : 'neutral'}>{circle.status}</Badge>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-ink">{circle.name}</h1>
+            <Badge tone={circle.status === 'active' ? 'primary' : 'neutral'}>{circle.status}</Badge>
+          </div>
+          <p className="mt-1 text-sm text-ink/60">{circle.circleTypeLabel} &middot; {circle.area.areaLabel}</p>
         </div>
-        <p className="mt-1 text-sm text-ink/60">{circle.circleTypeLabel} &middot; {circle.area.areaLabel}</p>
+        {isCoordinator ? (
+          <Link to={`/app/circles/${circle.id}/edit`}>
+            <Button variant="secondary" size="sm">
+              Edit Circle
+            </Button>
+          </Link>
+        ) : null}
       </div>
 
       {circle.shortDescription ? <p className="text-sm text-ink/80">{circle.shortDescription}</p> : null}
