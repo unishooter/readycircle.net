@@ -13,6 +13,17 @@ export const users = pgTable(
     displayName: text('display_name').notNull(),
     email: text('email'),
     emailVerified: boolean('email_verified').notNull().default(false),
+    /**
+     * Optional contact fields the member fills in themselves (never sourced
+     * from an auth provider). Each has its own visibility flag so a member
+     * can share, say, a phone number with their Circles without also
+     * exposing a mailing address.
+     */
+    phone: text('phone'),
+    address: text('address'),
+    emailVisibleToCircle: boolean('email_visible_to_circle').notNull().default(false),
+    phoneVisibleToCircle: boolean('phone_visible_to_circle').notNull().default(false),
+    addressVisibleToCircle: boolean('address_visible_to_circle').notNull().default(false),
     /** Descriptive label shown only in the development login picker. Always null in production data. */
     devPersona: text('dev_persona'),
     /**

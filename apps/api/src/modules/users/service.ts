@@ -2,7 +2,7 @@ import type { Database } from '@readycircle/database';
 import type { CurrentUser, UpdateCurrentUserInput } from '@readycircle/contracts';
 import { NotFoundError } from '../../lib/errors.js';
 import type { AuditService } from '../audit/service.js';
-import { getCurrentUserById, updateUserDisplayName } from './repository.js';
+import { getCurrentUserById, updateUserProfile } from './repository.js';
 
 export class UserService {
   constructor(
@@ -17,9 +17,7 @@ export class UserService {
   }
 
   async updateMe(userId: string, input: UpdateCurrentUserInput, requestId: string): Promise<CurrentUser> {
-    if (input.displayName !== undefined) {
-      await updateUserDisplayName(this.db, userId, input.displayName);
-    }
+    await updateUserProfile(this.db, userId, input);
     await this.audit.record({
       actorUserId: userId,
       action: 'user.profile_updated',

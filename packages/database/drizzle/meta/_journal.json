@@ -71,6 +71,13 @@
       "when": 1785950400000,
       "tag": "0009_contact_log",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786000000000,
+      "tag": "0010_profile_contact_visibility",
+      "breakpoints": true
     }
   ]
 }

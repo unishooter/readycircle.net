@@ -1,5 +1,11 @@
 import type { Database } from '@readycircle/database';
-import { canAddStationToCircle, canManageMembers, canViewCircle, wouldLeaveCircleWithoutCoordinator } from '@readycircle/domain';
+import {
+  canAddStationToCircle,
+  canManageMembers,
+  canViewCircle,
+  shapeMemberContact,
+  wouldLeaveCircleWithoutCoordinator,
+} from '@readycircle/domain';
 import type { CreateMembershipInput, MembershipResponse, UpdateMembershipInput } from '@readycircle/contracts';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import type { AuditService } from '../audit/service.js';
@@ -23,6 +29,8 @@ function mapMembership(detail: MembershipDetail): MembershipResponse {
     stationName: detail.stationName,
     stationStatus: detail.stationStatus,
     userId: detail.userId,
+    memberDisplayName: detail.memberDisplayName,
+    contact: shapeMemberContact(detail),
     role: detail.role,
     status: detail.status,
     joinedAt: detail.joinedAt.toISOString(),

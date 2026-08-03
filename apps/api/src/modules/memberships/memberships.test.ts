@@ -95,6 +95,37 @@ describe('memberships API', () => {
     expect(body.stationId).toBe(memberStationId);
   });
 
+  it("shares only the contact fields a member has marked visible to their Circles", async () => {
+    const initialResponse = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/v1/circles/${circleId}/members`,
+      cookies: { rc_session: coordinator.sessionToken },
+    });
+    const items: { stationId: string; memberDisplayName: string; contact: unknown }[] = initialResponse.json().items;
+    const initialRow = items.find((m) => m.stationId === memberStationId);
+    expect(initialRow?.memberDisplayName).toBe('Membership Member');
+    expect(initialRow?.contact).toEqual({ email: null, phone: null, address: null });
+
+    const updateResponse = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/v1/users/me',
+      cookies: { rc_session: member.sessionToken },
+      payload: { phone: '555-0199', address: '99 Birch Ln', phoneVisibleToCircle: true },
+    });
+    expect(updateResponse.statusCode).toBe(200);
+
+    const updatedResponse = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/v1/circles/${circleId}/members`,
+      cookies: { rc_session: coordinator.sessionToken },
+    });
+    const updatedItems: { stationId: string; contact: { email: string | null; phone: string | null; address: string | null } }[] =
+      updatedResponse.json().items;
+    const updatedRow = updatedItems.find((m) => m.stationId === memberStationId);
+    // Phone was marked visible and has a value; address has a value but was never marked visible.
+    expect(updatedRow?.contact).toEqual({ email: null, phone: '555-0199', address: null });
+  });
+
   it('shapes a fellow Circle member\'s station without precise coordinates, even at one_km_grid precision', async () => {
     const response = await ctx.app.inject({
       method: 'GET',

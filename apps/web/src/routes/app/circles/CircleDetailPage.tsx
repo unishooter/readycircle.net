@@ -35,6 +35,7 @@ export function CircleDetailPage() {
   const [selectedStationId, setSelectedStationId] = useState('');
   const [scenarioOpen, setScenarioOpen] = useState(false);
   const [scenario, setScenario] = useState<Scenario>(DEFAULT_SCENARIO);
+  const [expandedContactIds, setExpandedContactIds] = useState<Set<string>>(new Set());
 
   if (isLoading) return <p className="text-sm text-ink/50">Loading…</p>;
   if (error || !circle) {
@@ -78,6 +79,15 @@ export function CircleDetailPage() {
     const plan = await generatePlan.mutateAsync({ scenario });
     setScenarioOpen(false);
     navigate(`/app/plans/${plan.id}`);
+  }
+
+  function toggleContact(membershipId: string) {
+    setExpandedContactIds((current) => {
+      const next = new Set(current);
+      if (next.has(membershipId)) next.delete(membershipId);
+      else next.add(membershipId);
+      return next;
+    });
   }
 
   return (
@@ -253,46 +263,88 @@ export function CircleDetailPage() {
           <p className="mt-4 text-sm text-ink/50">Loading…</p>
         ) : (
           <ul className="mt-4 divide-y divide-black/5">
-            {members.map((member) => (
-              <li key={member.id} className="flex items-center justify-between py-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-ink">{member.stationName}</p>
-                    {member.stationStatus === 'hypothetical' ? <Badge tone="amber">Planned</Badge> : null}
+            {members.map((member) => {
+              const hasSharedContact = member.contact.email || member.contact.phone || member.contact.address;
+              const isExpanded = expandedContactIds.has(member.id);
+              return (
+                <li key={member.id} className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-ink">{member.memberDisplayName}</p>
+                        {member.stationStatus === 'hypothetical' ? <Badge tone="amber">Planned</Badge> : null}
+                      </div>
+                      <p className="text-xs text-ink/50">
+                        {member.stationName} &middot; Joined {new Date(member.joinedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isCoordinator ? (
+                        <select
+                          className="rounded-md border border-black/10 px-2 py-1 text-xs"
+                          value={member.role}
+                          onChange={(event) =>
+                            void updateMember.mutateAsync({
+                              membershipId: member.id,
+                              input: { role: event.target.value as 'coordinator' | 'member' },
+                            })
+                          }
+                        >
+                          <option value="member">Member</option>
+                          <option value="coordinator">Coordinator</option>
+                        </select>
+                      ) : (
+                        <Badge tone={member.role === 'coordinator' ? 'primary' : 'neutral'}>{member.role}</Badge>
+                      )}
+                      {isCoordinator ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void removeMember.mutateAsync(member.id)}
+                          disabled={removeMember.isPending}
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
-                  <p className="text-xs text-ink/50">Joined {new Date(member.joinedAt).toLocaleDateString()}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {isCoordinator ? (
-                    <select
-                      className="rounded-md border border-black/10 px-2 py-1 text-xs"
-                      value={member.role}
-                      onChange={(event) =>
-                        void updateMember.mutateAsync({
-                          membershipId: member.id,
-                          input: { role: event.target.value as 'coordinator' | 'member' },
-                        })
-                      }
-                    >
-                      <option value="member">Member</option>
-                      <option value="coordinator">Coordinator</option>
-                    </select>
-                  ) : (
-                    <Badge tone={member.role === 'coordinator' ? 'primary' : 'neutral'}>{member.role}</Badge>
-                  )}
-                  {isCoordinator ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void removeMember.mutateAsync(member.id)}
-                      disabled={removeMember.isPending}
-                    >
-                      Remove
-                    </Button>
+
+                  {hasSharedContact ? (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-navy-700 hover:text-navy-800"
+                        onClick={() => toggleContact(member.id)}
+                      >
+                        {isExpanded ? 'Hide contact info' : 'Show contact info'}
+                      </button>
+                      {isExpanded ? (
+                        <dl className="mt-2 space-y-1 rounded-lg bg-navy-50/60 px-3 py-2 text-xs">
+                          {member.contact.email ? (
+                            <div className="flex gap-2">
+                              <dt className="w-16 shrink-0 font-medium text-ink/50">Email</dt>
+                              <dd className="text-ink/80">{member.contact.email}</dd>
+                            </div>
+                          ) : null}
+                          {member.contact.phone ? (
+                            <div className="flex gap-2">
+                              <dt className="w-16 shrink-0 font-medium text-ink/50">Phone</dt>
+                              <dd className="text-ink/80">{member.contact.phone}</dd>
+                            </div>
+                          ) : null}
+                          {member.contact.address ? (
+                            <div className="flex gap-2">
+                              <dt className="w-16 shrink-0 font-medium text-ink/50">Address</dt>
+                              <dd className="text-ink/80">{member.contact.address}</dd>
+                            </div>
+                          ) : null}
+                        </dl>
+                      ) : null}
+                    </div>
                   ) : null}
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
 

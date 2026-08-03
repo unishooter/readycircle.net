@@ -4,6 +4,7 @@ import {
   circleRoleAssignments,
   circleRoles,
   stations,
+  users,
   type Database,
 } from '@readycircle/database';
 
@@ -14,9 +15,69 @@ export interface MembershipDetail {
   stationName: string;
   stationStatus: 'active' | 'hypothetical' | 'archived';
   userId: string;
+  memberDisplayName: string;
+  email: string | null;
+  emailVisibleToCircle: boolean;
+  phone: string | null;
+  phoneVisibleToCircle: boolean;
+  address: string | null;
+  addressVisibleToCircle: boolean;
   status: 'active' | 'removed';
   joinedAt: Date;
   role: 'coordinator' | 'member';
+}
+
+interface MembershipRow {
+  membership: typeof circleMemberships.$inferSelect;
+  stationName: string;
+  stationStatus: string;
+  memberDisplayName: string;
+  email: string | null;
+  emailVisibleToCircle: boolean;
+  phone: string | null;
+  phoneVisibleToCircle: boolean;
+  address: string | null;
+  addressVisibleToCircle: boolean;
+}
+
+function membershipQuery(db: Database) {
+  return db
+    .select({
+      membership: circleMemberships,
+      stationName: stations.name,
+      stationStatus: stations.status,
+      memberDisplayName: users.displayName,
+      email: users.email,
+      emailVisibleToCircle: users.emailVisibleToCircle,
+      phone: users.phone,
+      phoneVisibleToCircle: users.phoneVisibleToCircle,
+      address: users.address,
+      addressVisibleToCircle: users.addressVisibleToCircle,
+    })
+    .from(circleMemberships)
+    .innerJoin(stations, eq(stations.id, circleMemberships.stationId))
+    .innerJoin(users, eq(users.id, circleMemberships.userId));
+}
+
+function toMembershipDetail(row: MembershipRow, role: 'coordinator' | 'member'): MembershipDetail {
+  return {
+    id: row.membership.id,
+    circleId: row.membership.circleId,
+    stationId: row.membership.stationId,
+    stationName: row.stationName,
+    stationStatus: row.stationStatus as MembershipDetail['stationStatus'],
+    userId: row.membership.userId,
+    memberDisplayName: row.memberDisplayName,
+    email: row.email,
+    emailVisibleToCircle: row.emailVisibleToCircle,
+    phone: row.phone,
+    phoneVisibleToCircle: row.phoneVisibleToCircle,
+    address: row.address,
+    addressVisibleToCircle: row.addressVisibleToCircle,
+    status: row.membership.status as 'active' | 'removed',
+    joinedAt: row.membership.joinedAt,
+    role,
+  };
 }
 
 function roleMapFromRows(rows: { membershipId: string; key: string }[]): Map<string, 'coordinator' | 'member'> {
@@ -24,10 +85,7 @@ function roleMapFromRows(rows: { membershipId: string; key: string }[]): Map<str
 }
 
 export async function listMembers(db: Database, circleId: string): Promise<MembershipDetail[]> {
-  const rows = await db
-    .select({ membership: circleMemberships, stationName: stations.name, stationStatus: stations.status })
-    .from(circleMemberships)
-    .innerJoin(stations, eq(stations.id, circleMemberships.stationId))
+  const rows = await membershipQuery(db)
     .where(eq(circleMemberships.circleId, circleId))
     .orderBy(circleMemberships.joinedAt);
 
@@ -41,26 +99,11 @@ export async function listMembers(db: Database, circleId: string): Promise<Membe
     .where(inArray(circleRoleAssignments.membershipId, membershipIds));
   const roleByMembership = roleMapFromRows(roleRows);
 
-  return rows.map((row) => ({
-    id: row.membership.id,
-    circleId: row.membership.circleId,
-    stationId: row.membership.stationId,
-    stationName: row.stationName,
-    stationStatus: row.stationStatus as MembershipDetail['stationStatus'],
-    userId: row.membership.userId,
-    status: row.membership.status as 'active' | 'removed',
-    joinedAt: row.membership.joinedAt,
-    role: roleByMembership.get(row.membership.id) ?? 'member',
-  }));
+  return rows.map((row) => toMembershipDetail(row, roleByMembership.get(row.membership.id) ?? 'member'));
 }
 
 export async function getMembershipById(db: Database, membershipId: string): Promise<MembershipDetail | null> {
-  const [row] = await db
-    .select({ membership: circleMemberships, stationName: stations.name, stationStatus: stations.status })
-    .from(circleMemberships)
-    .innerJoin(stations, eq(stations.id, circleMemberships.stationId))
-    .where(eq(circleMemberships.id, membershipId))
-    .limit(1);
+  const [row] = await membershipQuery(db).where(eq(circleMemberships.id, membershipId)).limit(1);
   if (!row) return null;
 
   const [assignment] = await db
@@ -70,17 +113,7 @@ export async function getMembershipById(db: Database, membershipId: string): Pro
     .where(eq(circleRoleAssignments.membershipId, membershipId))
     .limit(1);
 
-  return {
-    id: row.membership.id,
-    circleId: row.membership.circleId,
-    stationId: row.membership.stationId,
-    stationName: row.stationName,
-    stationStatus: row.stationStatus as MembershipDetail['stationStatus'],
-    userId: row.membership.userId,
-    status: row.membership.status as 'active' | 'removed',
-    joinedAt: row.membership.joinedAt,
-    role: (assignment?.key as 'coordinator' | 'member' | undefined) ?? 'member',
-  };
+  return toMembershipDetail(row, (assignment?.key as 'coordinator' | 'member' | undefined) ?? 'member');
 }
 
 export async function getStationOwner(db: Database, stationId: string): Promise<{ ownerId: string; name: string } | null> {
