@@ -107,7 +107,18 @@ export function CircleDetailPage() {
             <Badge tone={circle.status === 'active' ? 'primary' : 'neutral'}>{circle.status}</Badge>
             <CircleIdentifierBadge identifier={circle.circleIdentifier} />
           </div>
-          <p className="mt-1 text-sm text-ink/60">{circle.circleTypeLabel} &middot; {circle.area.areaLabel}</p>
+          <p className="mt-1 text-sm text-ink/60">
+            {circle.circleTypeLabel} &middot; {circle.area.areaLabel}
+            {circle.area.gridIdentifier ? (
+              <>
+                {' '}
+                &middot; Grid {circle.area.gridIdentifier}{' '}
+                <span title="Approximate center of the Circle's general area, not its actual coverage.">ⓘ</span>
+              </>
+            ) : circle.area.gridOrLocalityLabel ? (
+              <> &middot; {circle.area.gridOrLocalityLabel}</>
+            ) : null}
+          </p>
         </div>
         {isCoordinator ? (
           <Link to={`/app/circles/${circle.id}/edit`}>

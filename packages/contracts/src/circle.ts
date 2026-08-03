@@ -12,9 +12,22 @@ export const circleIdentifierSchema = z
   .string()
   .regex(CIRCLE_IDENTIFIER_PATTERN, 'Must be a 4-character Circle Identifier, e.g. RAV7.');
 
+/**
+ * A point on a map, snapped server-side to the center of its containing 1km
+ * MGRS grid cell (see `deriveGridIdentifier` in @readycircle/geo) -- clients
+ * never submit an MGRS code directly, mirroring the station location
+ * pattern (docs/decisions/0009-mgrs-location-capture.md).
+ */
+export const circleGridLocationInputSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+export type CircleGridLocationInput = z.infer<typeof circleGridLocationInputSchema>;
+
 export const circleAreaInputSchema = z.object({
   areaLabel: z.string().min(1).max(120),
-  gridOrLocalityLabel: z.string().max(120).optional(),
+  /** Explicit `null` clears a previously-set pin; `undefined` leaves it untouched. */
+  gridLocation: circleGridLocationInputSchema.nullable().optional(),
 });
 export type CircleAreaInput = z.infer<typeof circleAreaInputSchema>;
 
@@ -55,7 +68,12 @@ export const circleResponseSchema = z.object({
   purpose: z.string().nullable(),
   area: z.object({
     areaLabel: z.string(),
+    /** Legacy free-text value from before the map picker existed. No longer settable; only present as a display fallback until a coordinator sets a real map pin (see `gridIdentifier`). */
     gridOrLocalityLabel: z.string().nullable(),
+    /** Server-derived MGRS 1km grid code from the map-picked location. Null until a coordinator sets a pin. */
+    gridIdentifier: z.string().nullable(),
+    gridLatitude: z.number().nullable(),
+    gridLongitude: z.number().nullable(),
   }),
   isPrivate: z.boolean(),
   requiresApproval: z.boolean(),

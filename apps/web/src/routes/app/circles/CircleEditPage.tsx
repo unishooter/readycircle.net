@@ -3,11 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   CIRCLE_TYPE_LABELS,
   circleTypeSchema,
+  type CircleGridLocationInput,
   type CircleResponse,
   type CircleType,
   type MemberSharingPolicy,
 } from '@readycircle/contracts';
+import { deriveGridIdentifier } from '@readycircle/geo';
 import { Button, Card, CardTitle, CheckboxOption, Field, Select, TextArea, TextInput } from '@readycircle/ui';
+import { MapLocationPicker, type MapLocationPickerValue } from '../../../features/location/MapLocationPicker.js';
 import { useCircle, useUpdateCircle } from '../../../features/circles/api.js';
 import { CircleIdentifierBadge } from '../../../features/circles/CircleIdentifierBadge.js';
 
@@ -17,7 +20,8 @@ interface CircleDraft {
   shortDescription: string;
   purpose: string;
   areaLabel: string;
-  gridOrLocalityLabel: string;
+  /** `null` means "no pin set" -- distinct from the legacy free-text `gridOrLocalityLabel`, which is display-only and never edited here. */
+  gridLocation: CircleGridLocationInput | null;
   isPrivate: boolean;
   requiresApproval: boolean;
   memberSharingPolicy: MemberSharingPolicy;
@@ -30,7 +34,10 @@ function toDraft(circle: CircleResponse): CircleDraft {
     shortDescription: circle.shortDescription ?? '',
     purpose: circle.purpose ?? '',
     areaLabel: circle.area.areaLabel,
-    gridOrLocalityLabel: circle.area.gridOrLocalityLabel ?? '',
+    gridLocation:
+      circle.area.gridLatitude != null && circle.area.gridLongitude != null
+        ? { latitude: circle.area.gridLatitude, longitude: circle.area.gridLongitude }
+        : null,
     isPrivate: circle.isPrivate,
     requiresApproval: circle.requiresApproval,
     memberSharingPolicy: circle.memberSharingPolicy,
@@ -90,6 +97,18 @@ export function CircleEditPage() {
 
   const canSubmit = draft.name.trim().length > 0 && draft.areaLabel.trim().length > 0;
 
+  const gridPickerValue: MapLocationPickerValue | null = draft.gridLocation
+    ? {
+        latitude: draft.gridLocation.latitude,
+        longitude: draft.gridLocation.longitude,
+        mgrsCode: deriveGridIdentifier(draft.gridLocation.latitude, draft.gridLocation.longitude) ?? undefined,
+      }
+    : null;
+
+  function handleGridLocationChange(value: MapLocationPickerValue) {
+    patch({ gridLocation: { latitude: value.latitude, longitude: value.longitude } });
+  }
+
   async function handleSave() {
     if (!draft) return;
     await updateCircle.mutateAsync({
@@ -99,7 +118,7 @@ export function CircleEditPage() {
       purpose: draft.purpose.trim() || undefined,
       area: {
         areaLabel: draft.areaLabel.trim(),
-        gridOrLocalityLabel: draft.gridOrLocalityLabel.trim() || undefined,
+        gridLocation: draft.gridLocation,
       },
       isPrivate: draft.isPrivate,
       requiresApproval: draft.requiresApproval,
@@ -168,15 +187,25 @@ export function CircleEditPage() {
               <TextInput id={id} value={draft.areaLabel} onChange={(e) => patch({ areaLabel: e.target.value })} />
             )}
           </Field>
-          <Field label="Grid or locality label" hint="Optional -- a grid square or locality name.">
-            {(id) => (
-              <TextInput
-                id={id}
-                value={draft.gridOrLocalityLabel}
-                onChange={(e) => patch({ gridOrLocalityLabel: e.target.value })}
-              />
-            )}
-          </Field>
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-ink">Map location (optional)</p>
+            <p className="text-xs text-ink/60">
+              Click the map to mark your Circle&apos;s general location. This places a pin at the center of the
+              area; it does <strong>not</strong> represent your Circle&apos;s actual coverage. Setting a location
+              will help future features (like finding open Circles near a ZIP code or city) surface this one.
+            </p>
+            <MapLocationPicker mode="grid" value={gridPickerValue} onChange={handleGridLocationChange} />
+            {draft.gridLocation ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => patch({ gridLocation: null })}>
+                Clear location
+              </Button>
+            ) : circle.area.gridOrLocalityLabel ? (
+              <p className="text-xs text-ink/50">
+                Previously recorded: {circle.area.gridOrLocalityLabel} (free text, not shown on a map). Set a
+                location above to replace this.
+              </p>
+            ) : null}
+          </div>
         </div>
       </Card>
 

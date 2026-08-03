@@ -33,7 +33,7 @@ function makeCircle(overrides: Partial<CircleResponse> = {}): CircleResponse {
     circleIdentifier: 'RAV7',
     shortDescription: null,
     purpose: null,
-    area: { areaLabel: 'Riverside district', gridOrLocalityLabel: null },
+    area: { areaLabel: 'Riverside district', gridOrLocalityLabel: null, gridIdentifier: null, gridLatitude: null, gridLongitude: null },
     isPrivate: false,
     requiresApproval: false,
     memberSharingPolicy: 'all_members',

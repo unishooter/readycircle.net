@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   circleMemberships,
   circleRoleAssignments,
@@ -7,6 +7,7 @@ import {
   type Database,
 } from '@readycircle/database';
 import { generateCircleIdentifier, isCircleIdentifierCollision } from '@readycircle/domain';
+import { deriveGridIdentifier } from '@readycircle/geo';
 import type { CreateCircleInput, UpdateCircleInput } from '@readycircle/contracts';
 import { ConflictError } from '../../lib/errors.js';
 
@@ -15,6 +16,26 @@ export type CircleRow = typeof circles.$inferSelect;
 const MAX_CIRCLE_IDENTIFIER_ATTEMPTS = 10;
 const CIRCLE_IDENTIFIER_EXHAUSTED_MESSAGE =
   'Could not assign a unique Circle Identifier. Please try creating the Circle again.';
+
+/**
+ * Writes (or clears) the raw PostGIS geography column alongside the plain
+ * lat/lng columns -- mirrors `upsertGeography` in the repeaters repository,
+ * since Drizzle's typed query builder can't express `ST_SetSRID`/`ST_MakePoint`.
+ */
+async function upsertCircleGeography(
+  db: Database,
+  circleId: string,
+  latitude?: number | null,
+  longitude?: number | null,
+): Promise<void> {
+  if (latitude != null && longitude != null) {
+    await db.execute(
+      sql`update circles set grid_geog = ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography where id = ${circleId}`,
+    );
+  } else {
+    await db.execute(sql`update circles set grid_geog = null where id = ${circleId}`);
+  }
+}
 
 /**
  * Generates the Circle Identifier and inserts the circle + creator
@@ -29,10 +50,13 @@ export async function createCircleRecord(
   creatorUserId: string,
   input: CreateCircleInput,
 ): Promise<string> {
+  const gridLocation = input.area.gridLocation;
+  const gridIdentifier = gridLocation ? deriveGridIdentifier(gridLocation.latitude, gridLocation.longitude) : null;
+
   for (let attempt = 1; attempt <= MAX_CIRCLE_IDENTIFIER_ATTEMPTS; attempt++) {
     const circleIdentifier = generateCircleIdentifier();
     try {
-      return await db.transaction(async (tx) => {
+      const circleId = await db.transaction(async (tx) => {
         const [circle] = await tx
           .insert(circles)
           .values({
@@ -42,7 +66,9 @@ export async function createCircleRecord(
             shortDescription: input.shortDescription ?? null,
             purpose: input.purpose ?? null,
             areaLabel: input.area.areaLabel,
-            gridOrLocalityLabel: input.area.gridOrLocalityLabel ?? null,
+            gridIdentifier,
+            gridLatitude: gridLocation?.latitude ?? null,
+            gridLongitude: gridLocation?.longitude ?? null,
             isPrivate: input.isPrivate,
             requiresApproval: input.requiresApproval,
             memberSharingPolicy: input.memberSharingPolicy,
@@ -71,6 +97,8 @@ export async function createCircleRecord(
 
         return circle.id;
       });
+      if (gridLocation) await upsertCircleGeography(db, circleId, gridLocation.latitude, gridLocation.longitude);
+      return circleId;
     } catch (error) {
       if (isCircleIdentifierCollision(error) && attempt < MAX_CIRCLE_IDENTIFIER_ATTEMPTS) continue;
       if (isCircleIdentifierCollision(error)) throw new ConflictError(CIRCLE_IDENTIFIER_EXHAUSTED_MESSAGE);
@@ -112,7 +140,18 @@ export async function updateCircleRecord(
   if (input.shortDescription !== undefined) fields.shortDescription = input.shortDescription;
   if (input.purpose !== undefined) fields.purpose = input.purpose;
   if (input.area?.areaLabel !== undefined) fields.areaLabel = input.area.areaLabel;
-  if (input.area?.gridOrLocalityLabel !== undefined) fields.gridOrLocalityLabel = input.area.gridOrLocalityLabel;
+
+  const gridLocation = input.area?.gridLocation;
+  if (gridLocation === null) {
+    fields.gridIdentifier = null;
+    fields.gridLatitude = null;
+    fields.gridLongitude = null;
+  } else if (gridLocation !== undefined) {
+    fields.gridIdentifier = deriveGridIdentifier(gridLocation.latitude, gridLocation.longitude);
+    fields.gridLatitude = gridLocation.latitude;
+    fields.gridLongitude = gridLocation.longitude;
+  }
+
   if (input.isPrivate !== undefined) fields.isPrivate = input.isPrivate;
   if (input.requiresApproval !== undefined) fields.requiresApproval = input.requiresApproval;
   if (input.memberSharingPolicy !== undefined) fields.memberSharingPolicy = input.memberSharingPolicy;
@@ -121,6 +160,11 @@ export async function updateCircleRecord(
   if (Object.keys(fields).length > 0) {
     fields.updatedAt = new Date();
     await db.update(circles).set(fields).where(eq(circles.id, circleId));
+  }
+  if (gridLocation === null) {
+    await upsertCircleGeography(db, circleId, null, null);
+  } else if (gridLocation !== undefined) {
+    await upsertCircleGeography(db, circleId, gridLocation.latitude, gridLocation.longitude);
   }
   return getCircleById(db, circleId);
 }

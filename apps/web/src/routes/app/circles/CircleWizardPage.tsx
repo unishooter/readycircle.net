@@ -5,7 +5,9 @@ import {
   circleTypeSchema,
   type CreateCircleInput,
 } from '@readycircle/contracts';
+import { deriveGridIdentifier } from '@readycircle/geo';
 import { Button, Card, CheckboxOption, Field, Select, Stepper, TextArea, TextInput } from '@readycircle/ui';
+import { MapLocationPicker, type MapLocationPickerValue } from '../../../features/location/MapLocationPicker.js';
 import { useStations } from '../../../features/stations/api.js';
 import { useCreateCircle } from '../../../features/circles/api.js';
 
@@ -63,6 +65,22 @@ export function CircleWizardPage() {
   async function handleSubmit() {
     const created = await createCircle.mutateAsync(draft);
     navigate(`/app/circles/${created.id}`);
+  }
+
+  const gridPickerValue: MapLocationPickerValue | null = draft.area.gridLocation
+    ? {
+        latitude: draft.area.gridLocation.latitude,
+        longitude: draft.area.gridLocation.longitude,
+        mgrsCode: deriveGridIdentifier(draft.area.gridLocation.latitude, draft.area.gridLocation.longitude) ?? undefined,
+      }
+    : null;
+
+  function handleGridLocationChange(value: MapLocationPickerValue) {
+    setDraft({ ...draft, area: { ...draft.area, gridLocation: { latitude: value.latitude, longitude: value.longitude } } });
+  }
+
+  function handleClearGridLocation() {
+    setDraft({ ...draft, area: { ...draft.area, gridLocation: null } });
   }
 
   return (
@@ -130,15 +148,20 @@ export function CircleWizardPage() {
                 />
               )}
             </Field>
-            <Field label="Grid or locality label" hint="Optional -- a grid square or locality name.">
-              {(id) => (
-                <TextInput
-                  id={id}
-                  value={draft.area.gridOrLocalityLabel ?? ''}
-                  onChange={(e) => setDraft({ ...draft, area: { ...draft.area, gridOrLocalityLabel: e.target.value } })}
-                />
-              )}
-            </Field>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-ink">Map location (optional)</p>
+              <p className="text-xs text-ink/60">
+                Click the map to mark your Circle&apos;s general location. This places a pin at the center of the
+                area; it does <strong>not</strong> represent your Circle&apos;s actual coverage. Setting a location
+                will help future features (like finding open Circles near a ZIP code or city) surface this one.
+              </p>
+              <MapLocationPicker mode="grid" value={gridPickerValue} onChange={handleGridLocationChange} />
+              {draft.area.gridLocation ? (
+                <Button type="button" variant="ghost" size="sm" onClick={handleClearGridLocation}>
+                  Clear location
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -206,6 +229,10 @@ export function CircleWizardPage() {
               <div className="flex justify-between border-b border-black/5 pb-2">
                 <dt className="text-ink/60">Area</dt>
                 <dd className="font-medium text-ink">{draft.area.areaLabel || '—'}</dd>
+              </div>
+              <div className="flex justify-between border-b border-black/5 pb-2">
+                <dt className="text-ink/60">Map location</dt>
+                <dd className="font-medium text-ink">{gridPickerValue?.mgrsCode ?? 'Not set'}</dd>
               </div>
               <div className="flex justify-between border-b border-black/5 pb-2">
                 <dt className="text-ink/60">Your station</dt>

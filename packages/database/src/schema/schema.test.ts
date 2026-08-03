@@ -58,4 +58,15 @@ describe('database schema', () => {
     expect(columns.circleIdentifier.primary).toBe(false);
     expect(columns.id.primary).toBe(true);
   });
+
+  it('gives circles optional map-derived grid location columns', () => {
+    const columns = getTableColumns(schema.circles);
+    expect(columns.gridIdentifier).toBeDefined();
+    expect(columns.gridIdentifier.notNull).toBe(false);
+    expect(columns.gridLatitude).toBeDefined();
+    expect(columns.gridLongitude).toBeDefined();
+    expect(columns.gridGeog).toBeDefined();
+    // Legacy free-text field predating the map picker -- still present for fallback display.
+    expect(columns.gridOrLocalityLabel).toBeDefined();
+  });
 });

@@ -286,6 +286,28 @@ See [ADR 15](docs/decisions/0015-circle-identifier.md) for the full design
 rationale, including the staged migration and backfill approach for circles
 that existed before this feature shipped.
 
+## Circle map-based grid location
+
+When creating or editing a Circle, coordinators can optionally click a map
+to mark the Circle's general location instead of typing free text. This
+reuses the same map picker and server-derived 1km MGRS grid code already
+used for stations (see [ADR 9](docs/decisions/0009-mgrs-location-capture.md)):
+
+- The map places a pin at the center of the containing 1km grid cell, not
+  the exact click point -- clear instructional copy states this represents
+  the Circle's general area, not its actual coverage.
+- The server always re-derives the grid identifier from the submitted
+  coordinates; a client can never set it directly.
+- Circles created before this feature keep showing their old free-text
+  locality label until a coordinator sets a real pin, at which point the
+  new grid identifier takes over for display.
+- Coordinates are also stored as a PostGIS geography column with a spatial
+  index, groundwork for a future "find open Circles near my ZIP code or
+  city" feature.
+
+See [ADR 16](docs/decisions/0016-circle-grid-location.md) for the full
+design rationale.
+
 ## Tests
 
 ```bash

@@ -282,4 +282,131 @@ describe('circles API', () => {
       generateCircleIdentifierMock.mockImplementation(actualGenerateCircleIdentifier);
     });
   });
+
+  describe('Circle grid location', () => {
+    const GRID_IDENTIFIER_PATTERN = /^\d{1,2}[C-HJ-NP-X][A-HJ-NP-Z]{2}\d{4}$/;
+
+    it('derives and returns a gridIdentifier when a map location is provided on creation', async () => {
+      const response = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: {
+          circleType: 'custom',
+          name: 'Grid Location Circle',
+          area: { areaLabel: 'Somewhere', gridLocation: { latitude: 38.8977, longitude: -77.0365 } },
+          creatorStationId,
+        },
+      });
+      expect(response.statusCode).toBe(201);
+      const body = response.json();
+      expect(body.area.gridIdentifier).toMatch(GRID_IDENTIFIER_PATTERN);
+      expect(body.area.gridLatitude).toBeCloseTo(38.8977, 3);
+      expect(body.area.gridLongitude).toBeCloseTo(-77.0365, 3);
+    });
+
+    it('returns null gridIdentifier and preserves legacy gridOrLocalityLabel when no map location is provided', async () => {
+      const response = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'No Grid Circle', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      expect(response.statusCode).toBe(201);
+      const body = response.json();
+      expect(body.area.gridIdentifier).toBeNull();
+      expect(body.area.gridLatitude).toBeNull();
+      expect(body.area.gridLongitude).toBeNull();
+      // No legacy label was ever settable through this API, so it's null too -- see seed data for a populated example.
+      expect(body.area.gridOrLocalityLabel).toBeNull();
+    });
+
+    it('sets, updates, and clears a gridLocation via PATCH', async () => {
+      const createResponse = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Grid Update Circle', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      const circleId = createResponse.json().id;
+      expect(createResponse.json().area.gridIdentifier).toBeNull();
+
+      const setResponse = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/circles/${circleId}`,
+        cookies: { rc_session: creator.sessionToken },
+        payload: { area: { areaLabel: 'Somewhere', gridLocation: { latitude: 38.8977, longitude: -77.0365 } } },
+      });
+      expect(setResponse.statusCode).toBe(200);
+      const firstIdentifier = setResponse.json().area.gridIdentifier;
+      expect(firstIdentifier).toMatch(GRID_IDENTIFIER_PATTERN);
+
+      const updateResponse = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/circles/${circleId}`,
+        cookies: { rc_session: creator.sessionToken },
+        payload: { area: { areaLabel: 'Somewhere', gridLocation: { latitude: 40.7128, longitude: -74.006 } } },
+      });
+      expect(updateResponse.statusCode).toBe(200);
+      const secondIdentifier = updateResponse.json().area.gridIdentifier;
+      expect(secondIdentifier).toMatch(GRID_IDENTIFIER_PATTERN);
+      expect(secondIdentifier).not.toBe(firstIdentifier);
+
+      const clearResponse = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/circles/${circleId}`,
+        cookies: { rc_session: creator.sessionToken },
+        payload: { area: { areaLabel: 'Somewhere', gridLocation: null } },
+      });
+      expect(clearResponse.statusCode).toBe(200);
+      const clearedBody = clearResponse.json();
+      expect(clearedBody.area.gridIdentifier).toBeNull();
+      expect(clearedBody.area.gridLatitude).toBeNull();
+      expect(clearedBody.area.gridLongitude).toBeNull();
+    });
+
+    it('ignores a client-supplied gridIdentifier and always re-derives it server-side', async () => {
+      const response = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: {
+          circleType: 'custom',
+          name: 'Spoofed Grid Circle',
+          // `gridIdentifier` is not part of `circleGridLocationInputSchema`, so this is stripped by Zod.
+          area: { areaLabel: 'Somewhere', gridLocation: { latitude: 1, longitude: 1, gridIdentifier: 'FAKE' } },
+          creatorStationId,
+        },
+      });
+      expect(response.statusCode).toBe(201);
+      const body = response.json();
+      expect(body.area.gridIdentifier).not.toBe('FAKE');
+      expect(body.area.gridIdentifier).toMatch(GRID_IDENTIFIER_PATTERN);
+    });
+
+    it('leaves an existing gridLocation untouched when the update omits it entirely', async () => {
+      const createResponse = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: {
+          circleType: 'custom',
+          name: 'Grid Untouched Circle',
+          area: { areaLabel: 'Somewhere', gridLocation: { latitude: 38.8977, longitude: -77.0365 } },
+          creatorStationId,
+        },
+      });
+      const circleId = createResponse.json().id;
+      const originalIdentifier = createResponse.json().area.gridIdentifier;
+
+      const renameResponse = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/circles/${circleId}`,
+        cookies: { rc_session: creator.sessionToken },
+        payload: { name: 'Renamed Without Touching Grid' },
+      });
+      expect(renameResponse.statusCode).toBe(200);
+      expect(renameResponse.json().area.gridIdentifier).toBe(originalIdentifier);
+    });
+  });
 });

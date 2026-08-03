@@ -1,6 +1,13 @@
-import { boolean, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, customType, doublePrecision, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { users } from './identity.js';
 import { stations } from './stations.js';
+
+/** Same raw PostGIS geography column pattern as `station_locations.geog`. */
+const geographyPoint = customType<{ data: string }>({
+  dataType() {
+    return 'geography(Point,4326)';
+  },
+});
 
 export const circles = pgTable(
   'circles',
@@ -23,7 +30,31 @@ export const circles = pgTable(
     shortDescription: text('short_description'),
     purpose: text('purpose'),
     areaLabel: text('area_label').notNull(),
+    /**
+     * Legacy free-text locality label from before the map-based grid picker
+     * existed (e.g. seed data's "FN20"). No longer settable through the API
+     * -- kept only so circles that predate this feature keep showing
+     * something until a coordinator re-saves with a real map pin (see
+     * `gridIdentifier` below, which then takes display precedence).
+     */
     gridOrLocalityLabel: text('grid_or_locality_label'),
+    /**
+     * Server-derived 1km MGRS grid code from the map-picked location (see
+     * `deriveGridIdentifier` in @readycircle/geo and
+     * docs/decisions/0009-mgrs-location-capture.md for the same pattern
+     * already used by stations). Always null until a coordinator picks a
+     * point on the map; clients never submit this directly.
+     */
+    gridIdentifier: text('grid_identifier'),
+    gridLatitude: doublePrecision('grid_latitude'),
+    gridLongitude: doublePrecision('grid_longitude'),
+    /**
+     * Raw PostGIS geography, written via raw SQL alongside gridLatitude/
+     * gridLongitude (see `upsertCircleGeography` in apps/api). Exists so a
+     * future "find Circles near me" feature has a real column + spatial
+     * index to query without another migration.
+     */
+    gridGeog: geographyPoint('grid_geog'),
     isPrivate: boolean('is_private').notNull().default(true),
     requiresApproval: boolean('requires_approval').notNull().default(true),
     memberSharingPolicy: text('member_sharing_policy').notNull().default('coordinators_only'),
@@ -40,6 +71,7 @@ export const circles = pgTable(
   },
   (table) => ({
     circleIdentifierUnique: uniqueIndex('circles_circle_identifier_idx').on(table.circleIdentifier),
+    gridGeogIdx: index('circles_grid_geog_idx').using('gist', table.gridGeog),
   }),
 );
 

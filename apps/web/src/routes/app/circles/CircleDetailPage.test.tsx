@@ -13,7 +13,7 @@ const baseCircle: CircleResponse = {
   circleIdentifier: 'RAV7',
   shortDescription: null,
   purpose: null,
-  area: { areaLabel: 'Riverside district', gridOrLocalityLabel: null },
+  area: { areaLabel: 'Riverside district', gridOrLocalityLabel: null, gridIdentifier: null, gridLatitude: null, gridLongitude: null },
   isPrivate: true,
   requiresApproval: true,
   memberSharingPolicy: 'coordinators_only',
