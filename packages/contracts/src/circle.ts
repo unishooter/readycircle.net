@@ -2,6 +2,16 @@ import { z } from 'zod';
 import { uuidSchema } from './common.js';
 import { circleRoleSchema, circleTypeSchema, memberSharingPolicySchema, recordStatusSchema } from './enums.js';
 
+/**
+ * Format for the short, human-readable public "Circle Identifier"
+ * (consonant-vowel-consonant-digit, e.g. "RAV7"). Digit `0` is excluded
+ * because it's easily confused with the letter `O` when read aloud.
+ */
+export const CIRCLE_IDENTIFIER_PATTERN = /^[BCDFGHJKMNPRSTVWXZ][AEIOU][BCDFGHJKMNPRSTVWXZ][1-9]$/;
+export const circleIdentifierSchema = z
+  .string()
+  .regex(CIRCLE_IDENTIFIER_PATTERN, 'Must be a 4-character Circle Identifier, e.g. RAV7.');
+
 export const circleAreaInputSchema = z.object({
   areaLabel: z.string().min(1).max(120),
   gridOrLocalityLabel: z.string().max(120).optional(),
@@ -39,6 +49,8 @@ export const circleResponseSchema = z.object({
   circleType: circleTypeSchema,
   circleTypeLabel: z.string(),
   name: z.string(),
+  /** Short, human-readable public identifier for display/verbal use only -- see `circles.circleIdentifier` in packages/database for why it must never be treated as a key. */
+  circleIdentifier: circleIdentifierSchema,
   shortDescription: z.string().nullable(),
   purpose: z.string().nullable(),
   area: z.object({

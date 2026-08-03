@@ -127,6 +127,7 @@ export class CircleService {
       circleType: circle.circleType as CircleType,
       circleTypeLabel: CIRCLE_TYPE_LABELS[circle.circleType as CircleType],
       name: circle.name,
+      circleIdentifier: circle.circleIdentifier,
       shortDescription: circle.shortDescription,
       purpose: circle.purpose,
       area: { areaLabel: circle.areaLabel, gridOrLocalityLabel: circle.gridOrLocalityLabel },

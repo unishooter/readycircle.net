@@ -266,6 +266,26 @@ another station in the same Circle:
 See [ADR 14](docs/decisions/0014-contact-log-verified-qsos.md) for the full
 design rationale.
 
+## Circle Identifier
+
+Every Circle has a permanent, human-readable public identifier -- a short
+consonant-vowel-consonant-digit code like `RAV7`, shown prominently near the
+Circle's name wherever the Circle appears in the UI, with a copy-to-clipboard
+button. It's for display, verbal communication, and support use only:
+
+- **Never a key.** The identifier is generated once, server-side, when a
+  Circle is created, and is immutable afterward. It's exposed alongside the
+  Circle's internal UUID in API responses, but routes, joins, and foreign
+  keys always continue to use the UUID -- there's no "look up a Circle by its
+  identifier" endpoint, and ordinary create/update requests can't set or
+  change it.
+- **Guaranteed unique** by a real Postgres unique index, with a bounded
+  generate-and-retry loop on the rare collision.
+
+See [ADR 15](docs/decisions/0015-circle-identifier.md) for the full design
+rationale, including the staged migration and backfill approach for circles
+that existed before this feature shipped.
+
 ## Tests
 
 ```bash

@@ -10,6 +10,7 @@ const baseCircle: CircleResponse = {
   circleType: 'neighborhood',
   circleTypeLabel: 'Neighborhood',
   name: 'Riverside Neighbors',
+  circleIdentifier: 'RAV7',
   shortDescription: null,
   purpose: null,
   area: { areaLabel: 'Riverside district', gridOrLocalityLabel: null },
@@ -96,6 +97,14 @@ function renderPage() {
 describe('CircleDetailPage members list', () => {
   beforeEach(() => {
     membersResult = { data: { items: [] }, isLoading: false };
+  });
+
+  it('prominently renders the Circle Identifier without ever showing the internal database id', () => {
+    membersResult = { data: { items: [] }, isLoading: false };
+    renderPage();
+    expect(screen.getByText('Circle Identifier')).toBeInTheDocument();
+    expect(screen.getByText('RAV7')).toBeInTheDocument();
+    expect(screen.queryByText(baseCircle.id)).not.toBeInTheDocument();
   });
 
   it("shows the member's display name and station as secondary text", () => {

@@ -9,6 +9,7 @@ import {
 } from '@readycircle/contracts';
 import { Button, Card, CardTitle, CheckboxOption, Field, Select, TextArea, TextInput } from '@readycircle/ui';
 import { useCircle, useUpdateCircle } from '../../../features/circles/api.js';
+import { CircleIdentifierBadge } from '../../../features/circles/CircleIdentifierBadge.js';
 
 interface CircleDraft {
   circleType: CircleType;
@@ -110,7 +111,10 @@ export function CircleEditPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-ink">Edit {circle.name}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold text-ink">Edit {circle.name}</h1>
+          <CircleIdentifierBadge identifier={circle.circleIdentifier} />
+        </div>
         <p className="mt-1 text-sm text-ink/60">Changes save to this Circle immediately when you click Save.</p>
       </div>
 

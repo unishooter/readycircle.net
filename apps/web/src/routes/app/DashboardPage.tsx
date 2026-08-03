@@ -4,6 +4,7 @@ import { useStations } from '../../features/stations/api.js';
 import { useCircles } from '../../features/circles/api.js';
 import { usePlans } from '../../features/plans/api.js';
 import { useNets } from '../../features/nets/api.js';
+import { CircleIdentifierBadge } from '../../features/circles/CircleIdentifierBadge.js';
 import { VersionStatusBadge } from './plans/plan-status.js';
 import { formatOccurrence } from './nets/format.js';
 
@@ -122,9 +123,12 @@ export function DashboardPage() {
                 <li key={circle.id}>
                   <Link
                     to={`/app/circles/${circle.id}`}
-                    className="flex items-center justify-between rounded-lg border border-black/5 px-4 py-3 hover:border-navy-300 hover:bg-navy-50"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-black/5 px-4 py-3 hover:border-navy-300 hover:bg-navy-50"
                   >
-                    <span className="text-sm font-medium text-ink">{circle.name}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-ink">{circle.name}</span>
+                      <CircleIdentifierBadge identifier={circle.circleIdentifier} compact />
+                    </span>
                     <Badge tone="neutral">{circle.memberCount} member{circle.memberCount === 1 ? '' : 's'}</Badge>
                   </Link>
                 </li>

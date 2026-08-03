@@ -30,6 +30,7 @@ function makeCircle(overrides: Partial<CircleResponse> = {}): CircleResponse {
     circleType: 'neighborhood',
     circleTypeLabel: 'Neighborhood Radio Circle',
     name: 'Riverside Neighbors',
+    circleIdentifier: 'RAV7',
     shortDescription: null,
     purpose: null,
     area: { areaLabel: 'Riverside district', gridOrLocalityLabel: null },

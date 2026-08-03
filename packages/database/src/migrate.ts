@@ -4,6 +4,8 @@ import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+import { backfillCircleIdentifiers, finalizeCircleIdentifierNotNull } from './backfill-circle-identifiers.js';
+import * as schema from './schema/index.js';
 import { circleRoles } from './schema/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,7 +18,7 @@ async function main() {
   }
 
   const client = postgres(connectionString, { max: 1 });
-  const db = drizzle(client);
+  const db = drizzle(client, { schema });
 
   console.log('Ensuring PostGIS extension is available...');
   await client.unsafe('CREATE EXTENSION IF NOT EXISTS postgis');
@@ -32,6 +34,11 @@ async function main() {
       { key: 'member', label: 'Member' },
     ])
     .onConflictDoNothing({ target: circleRoles.key });
+
+  console.log('Backfilling Circle Identifiers for existing circles...');
+  const { updated } = await backfillCircleIdentifiers(db);
+  console.log(`Assigned Circle Identifiers to ${updated} circle(s).`);
+  await finalizeCircleIdentifierNotNull(db);
 
   await client.end();
   console.log('Migrations complete.');

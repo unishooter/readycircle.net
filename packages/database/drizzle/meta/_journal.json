@@ -85,6 +85,13 @@
       "when": 1786100000000,
       "tag": "0011_contact_email_and_address_parts",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786190000000,
+      "tag": "0012_circle_identifier",
+      "breakpoints": true
     }
   ]
 }

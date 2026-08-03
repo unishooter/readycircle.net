@@ -10,6 +10,7 @@ const baseCircle: CircleResponse = {
   circleType: 'neighborhood',
   circleTypeLabel: 'Neighborhood',
   name: 'Riverside Neighbors',
+  circleIdentifier: 'RAV7',
   shortDescription: 'Block watch and emergency prep',
   purpose: 'Stay in touch during outages',
   area: { areaLabel: 'Riverside district', gridOrLocalityLabel: null },
@@ -57,6 +58,15 @@ describe('CircleEditPage', () => {
     renderEditPage();
     expect(screen.getByLabelText(/circle name/i)).toHaveValue('Riverside Neighbors');
     expect(screen.getByLabelText(/general area/i)).toHaveValue('Riverside district');
+  });
+
+  it('shows the read-only Circle Identifier, not the internal database id', () => {
+    renderEditPage();
+    expect(screen.getByText('Circle Identifier')).toBeInTheDocument();
+    expect(screen.getByText('RAV7')).toBeInTheDocument();
+    expect(screen.queryByText(baseCircle.id)).not.toBeInTheDocument();
+    // Display-only -- there's no editable form field for it, just the copy button.
+    expect(screen.queryByRole('textbox', { name: /circle identifier/i })).not.toBeInTheDocument();
   });
 
   it('saves edited values via useUpdateCircle', async () => {

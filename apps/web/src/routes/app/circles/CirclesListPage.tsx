@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Card, EmptyState } from '@readycircle/ui';
 import { useCircles } from '../../../features/circles/api.js';
+import { CircleIdentifierBadge } from '../../../features/circles/CircleIdentifierBadge.js';
 
 export function CirclesListPage() {
   const { data, isLoading } = useCircles();
@@ -43,6 +44,9 @@ export function CirclesListPage() {
                 <p className="mt-3 text-xs text-ink/50">
                   {circle.memberCount} member{circle.memberCount === 1 ? '' : 's'} &middot; {circle.area.areaLabel}
                 </p>
+                <div className="mt-2">
+                  <CircleIdentifierBadge identifier={circle.circleIdentifier} compact />
+                </div>
                 {circle.viewerRole === 'coordinator' ? (
                   <p className="mt-2 text-xs font-medium text-navy-700">You coordinate this Circle</p>
                 ) : null}

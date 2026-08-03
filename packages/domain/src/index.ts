@@ -6,3 +6,4 @@ export * from './audit-sanitization.js';
 export * from './net-occurrences.js';
 export * from './rf-reachability.js';
 export * from './user-contact-visibility.js';
+export * from './circle-identifier.js';

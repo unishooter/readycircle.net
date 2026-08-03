@@ -17,6 +17,7 @@ import { CircleGearSummaryCard } from '../../../features/plans/CircleGearSummary
 import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
 import { InviteCard } from '../../../features/invites/InviteCard.js';
 import { CircleContactsCard } from '../../../features/contacts/CircleContactsCard.js';
+import { CircleIdentifierBadge } from '../../../features/circles/CircleIdentifierBadge.js';
 import { VersionStatusBadge } from '../plans/plan-status.js';
 import { formatOccurrence } from '../nets/format.js';
 
@@ -101,9 +102,10 @@ export function CircleDetailPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold text-ink">{circle.name}</h1>
             <Badge tone={circle.status === 'active' ? 'primary' : 'neutral'}>{circle.status}</Badge>
+            <CircleIdentifierBadge identifier={circle.circleIdentifier} />
           </div>
           <p className="mt-1 text-sm text-ink/60">{circle.circleTypeLabel} &middot; {circle.area.areaLabel}</p>
         </div>

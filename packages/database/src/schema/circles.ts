@@ -2,28 +2,46 @@ import { boolean, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-or
 import { users } from './identity.js';
 import { stations } from './stations.js';
 
-export const circles = pgTable('circles', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  circleType: text('circle_type').notNull(),
-  name: text('name').notNull(),
-  shortDescription: text('short_description'),
-  purpose: text('purpose'),
-  areaLabel: text('area_label').notNull(),
-  gridOrLocalityLabel: text('grid_or_locality_label'),
-  isPrivate: boolean('is_private').notNull().default(true),
-  requiresApproval: boolean('requires_approval').notNull().default(true),
-  memberSharingPolicy: text('member_sharing_policy').notNull().default('coordinators_only'),
-  status: text('status').notNull().default('active'),
-  /**
-   * Provenance only, not an ownership relationship -- a Circle has its own
-   * members and coordinators and must survive its founder's account being
-   * deleted, so this is nullable and set to null rather than cascading
-   * (contrast with `stations.ownerId`, which does cascade).
-   */
-  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const circles = pgTable(
+  'circles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /**
+     * Short, human-readable public identifier (format: consonant-vowel-
+     * consonant-digit, e.g. "RAV7"), shown to members for display, verbal
+     * communication, and support. This is NOT a primary key and must NEVER
+     * be used as a foreign key or for internal joins -- all relationships,
+     * API route params, and DB lookups must keep using `id` above.
+     * Generated once by `generateCircleIdentifier` (packages/domain) at
+     * creation time and is immutable afterward; see migration 0012 for the
+     * unique index and `backfill-circle-identifiers.ts` for how existing
+     * rows were assigned one.
+     */
+    circleIdentifier: text('circle_identifier').notNull(),
+    circleType: text('circle_type').notNull(),
+    name: text('name').notNull(),
+    shortDescription: text('short_description'),
+    purpose: text('purpose'),
+    areaLabel: text('area_label').notNull(),
+    gridOrLocalityLabel: text('grid_or_locality_label'),
+    isPrivate: boolean('is_private').notNull().default(true),
+    requiresApproval: boolean('requires_approval').notNull().default(true),
+    memberSharingPolicy: text('member_sharing_policy').notNull().default('coordinators_only'),
+    status: text('status').notNull().default('active'),
+    /**
+     * Provenance only, not an ownership relationship -- a Circle has its own
+     * members and coordinators and must survive its founder's account being
+     * deleted, so this is nullable and set to null rather than cascading
+     * (contrast with `stations.ownerId`, which does cascade).
+     */
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    circleIdentifierUnique: uniqueIndex('circles_circle_identifier_idx').on(table.circleIdentifier),
+  }),
+);
 
 /**
  * A membership references both the user and the station explicitly (a

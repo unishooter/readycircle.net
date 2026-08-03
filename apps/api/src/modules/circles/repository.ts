@@ -6,49 +6,78 @@ import {
   circles,
   type Database,
 } from '@readycircle/database';
+import { generateCircleIdentifier, isCircleIdentifierCollision } from '@readycircle/domain';
 import type { CreateCircleInput, UpdateCircleInput } from '@readycircle/contracts';
+import { ConflictError } from '../../lib/errors.js';
 
 export type CircleRow = typeof circles.$inferSelect;
 
+const MAX_CIRCLE_IDENTIFIER_ATTEMPTS = 10;
+const CIRCLE_IDENTIFIER_EXHAUSTED_MESSAGE =
+  'Could not assign a unique Circle Identifier. Please try creating the Circle again.';
+
+/**
+ * Generates the Circle Identifier and inserts the circle + creator
+ * membership + coordinator role assignment inside one transaction. On an
+ * identifier collision the whole transaction is retried from scratch with a
+ * fresh identifier -- a failed statement poisons the current Postgres
+ * transaction, so we can't catch-and-continue *within* it, only retry the
+ * entire `db.transaction(...)` call with bounded attempts.
+ */
 export async function createCircleRecord(
   db: Database,
   creatorUserId: string,
   input: CreateCircleInput,
 ): Promise<string> {
-  return db.transaction(async (tx) => {
-    const [circle] = await tx
-      .insert(circles)
-      .values({
-        circleType: input.circleType,
-        name: input.name,
-        shortDescription: input.shortDescription ?? null,
-        purpose: input.purpose ?? null,
-        areaLabel: input.area.areaLabel,
-        gridOrLocalityLabel: input.area.gridOrLocalityLabel ?? null,
-        isPrivate: input.isPrivate,
-        requiresApproval: input.requiresApproval,
-        memberSharingPolicy: input.memberSharingPolicy,
-        createdBy: creatorUserId,
-      })
-      .returning();
-    if (!circle) throw new Error('Failed to create circle.');
+  for (let attempt = 1; attempt <= MAX_CIRCLE_IDENTIFIER_ATTEMPTS; attempt++) {
+    const circleIdentifier = generateCircleIdentifier();
+    try {
+      return await db.transaction(async (tx) => {
+        const [circle] = await tx
+          .insert(circles)
+          .values({
+            circleIdentifier,
+            circleType: input.circleType,
+            name: input.name,
+            shortDescription: input.shortDescription ?? null,
+            purpose: input.purpose ?? null,
+            areaLabel: input.area.areaLabel,
+            gridOrLocalityLabel: input.area.gridOrLocalityLabel ?? null,
+            isPrivate: input.isPrivate,
+            requiresApproval: input.requiresApproval,
+            memberSharingPolicy: input.memberSharingPolicy,
+            createdBy: creatorUserId,
+          })
+          .returning();
+        if (!circle) throw new Error('Failed to create circle.');
 
-    const [membership] = await tx
-      .insert(circleMemberships)
-      .values({ circleId: circle.id, stationId: input.creatorStationId, userId: creatorUserId })
-      .returning();
-    if (!membership) throw new Error('Failed to create the creator membership.');
+        const [membership] = await tx
+          .insert(circleMemberships)
+          .values({ circleId: circle.id, stationId: input.creatorStationId, userId: creatorUserId })
+          .returning();
+        if (!membership) throw new Error('Failed to create the creator membership.');
 
-    const [coordinatorRole] = await tx.select().from(circleRoles).where(eq(circleRoles.key, 'coordinator')).limit(1);
-    if (!coordinatorRole) {
-      throw new Error('Circle role catalog is missing the coordinator role. Run `pnpm db:migrate`.');
+        const [coordinatorRole] = await tx
+          .select()
+          .from(circleRoles)
+          .where(eq(circleRoles.key, 'coordinator'))
+          .limit(1);
+        if (!coordinatorRole) {
+          throw new Error('Circle role catalog is missing the coordinator role. Run `pnpm db:migrate`.');
+        }
+        await tx
+          .insert(circleRoleAssignments)
+          .values({ membershipId: membership.id, roleId: coordinatorRole.id, assignedBy: creatorUserId });
+
+        return circle.id;
+      });
+    } catch (error) {
+      if (isCircleIdentifierCollision(error) && attempt < MAX_CIRCLE_IDENTIFIER_ATTEMPTS) continue;
+      if (isCircleIdentifierCollision(error)) throw new ConflictError(CIRCLE_IDENTIFIER_EXHAUSTED_MESSAGE);
+      throw error;
     }
-    await tx
-      .insert(circleRoleAssignments)
-      .values({ membershipId: membership.id, roleId: coordinatorRole.id, assignedBy: creatorUserId });
-
-    return circle.id;
-  });
+  }
+  throw new ConflictError(CIRCLE_IDENTIFIER_EXHAUSTED_MESSAGE);
 }
 
 export async function getCircleById(db: Database, circleId: string): Promise<CircleRow | null> {

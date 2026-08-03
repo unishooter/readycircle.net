@@ -50,4 +50,12 @@ describe('database schema', () => {
     expect(getTableColumns(schema.planSections).content).toBeDefined();
     expect(getTableColumns(schema.planSections).sectionKey).toBeDefined();
   });
+
+  it('gives circles a required, non-key circleIdentifier column', () => {
+    const columns = getTableColumns(schema.circles);
+    expect(columns.circleIdentifier).toBeDefined();
+    expect(columns.circleIdentifier.notNull).toBe(true);
+    expect(columns.circleIdentifier.primary).toBe(false);
+    expect(columns.id.primary).toBe(true);
+  });
 });

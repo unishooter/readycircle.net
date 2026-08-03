@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from 'dotenv';
 import { eq, inArray } from 'drizzle-orm';
+import { generateCircleIdentifier } from '@readycircle/domain';
 import { createDatabase } from './client.js';
 import {
   circleMemberships,
@@ -167,6 +168,7 @@ async function main() {
   const [circle] = await db
     .insert(circles)
     .values({
+      circleIdentifier: generateCircleIdentifier(),
       circleType: 'neighborhood',
       name: 'Springfield North Side Circle',
       shortDescription: 'Neighbors staying in touch when phones and internet are down.',

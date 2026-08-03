@@ -1,5 +1,22 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { circles } from '@readycircle/database';
+import type * as DomainModule from '@readycircle/domain';
 import { createTestContext, deleteTestUser, loginAsNewDevUser, type TestContext, type TestUser } from '../../test/helpers.js';
+
+const CIRCLE_IDENTIFIER_PATTERN = /^[BCDFGHJKMNPRSTVWXZ][AEIOU][BCDFGHJKMNPRSTVWXZ][1-9]$/;
+
+// Preserves every other `@readycircle/domain` export (e.g. `canEditCircle`,
+// used by the service under test) while letting individual tests override
+// `generateCircleIdentifier` to force deterministic collisions.
+vi.mock('@readycircle/domain', async (importOriginal) => {
+  const actual = await importOriginal<typeof DomainModule>();
+  return { ...actual, generateCircleIdentifier: vi.fn(actual.generateCircleIdentifier) };
+});
+const { generateCircleIdentifier } = await import('@readycircle/domain');
+const generateCircleIdentifierMock = vi.mocked(generateCircleIdentifier);
+const { generateCircleIdentifier: actualGenerateCircleIdentifier } =
+  await vi.importActual<typeof DomainModule>('@readycircle/domain');
 
 function stationPayload(name: string) {
   return {
@@ -138,5 +155,131 @@ describe('circles API', () => {
       payload: { name: 'Hijacked' },
     });
     expect(updateResponse.statusCode).toBe(403);
+  });
+
+  describe('Circle Identifier', () => {
+    // These tests force specific literal identifiers via the mocked
+    // generator; clear out any leftover circle from a previous, possibly
+    // interrupted test run so the collision assertions stay deterministic
+    // (test circles here aren't cascade-deleted by `deleteTestUser` --
+    // `circles.createdBy` intentionally sets null instead of cascading).
+    beforeAll(async () => {
+      await ctx.db.delete(circles).where(eq(circles.circleIdentifier, 'RAV7'));
+      await ctx.db.delete(circles).where(eq(circles.circleIdentifier, 'TUG8'));
+      await ctx.db.delete(circles).where(eq(circles.circleIdentifier, 'MEK4'));
+    });
+
+    it('assigns a valid, unique Circle Identifier on creation', async () => {
+      const first = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Identifier Circle One', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      const second = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Identifier Circle Two', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      const firstBody = first.json();
+      const secondBody = second.json();
+      expect(firstBody.circleIdentifier).toMatch(CIRCLE_IDENTIFIER_PATTERN);
+      expect(secondBody.circleIdentifier).toMatch(CIRCLE_IDENTIFIER_PATTERN);
+      expect(firstBody.circleIdentifier).not.toBe(secondBody.circleIdentifier);
+    });
+
+    it('includes circleIdentifier in list and detail responses', async () => {
+      const createResponse = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'List Identifier Circle', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      const circleId = createResponse.json().id;
+
+      const detailResponse = await ctx.app.inject({
+        method: 'GET',
+        url: `/api/v1/circles/${circleId}`,
+        cookies: { rc_session: creator.sessionToken },
+      });
+      expect(detailResponse.json().circleIdentifier).toMatch(CIRCLE_IDENTIFIER_PATTERN);
+
+      const listResponse = await ctx.app.inject({
+        method: 'GET',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+      });
+      const listed = listResponse.json().items.find((item: { id: string }) => item.id === circleId);
+      expect(listed.circleIdentifier).toMatch(CIRCLE_IDENTIFIER_PATTERN);
+    });
+
+    it('ignores a client-supplied circleIdentifier on update (read-only)', async () => {
+      const createResponse = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Read Only Circle', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      const circleId = createResponse.json().id;
+      const originalIdentifier = createResponse.json().circleIdentifier;
+
+      const updateResponse = await ctx.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/circles/${circleId}`,
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleIdentifier: 'ZZZ9', name: 'Renamed Circle' },
+      });
+      expect(updateResponse.statusCode).toBe(200);
+      const body = updateResponse.json();
+      expect(body.name).toBe('Renamed Circle');
+      expect(body.circleIdentifier).toBe(originalIdentifier);
+      expect(body.circleIdentifier).not.toBe('ZZZ9');
+    });
+
+    it('retries with a fresh identifier when the first one collides', async () => {
+      generateCircleIdentifierMock.mockReturnValueOnce('RAV7').mockReturnValueOnce('RAV7').mockReturnValueOnce('TUG8');
+
+      const first = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Collision Circle One', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      expect(first.statusCode).toBe(201);
+      expect(first.json().circleIdentifier).toBe('RAV7');
+
+      const second = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Collision Circle Two', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      expect(second.statusCode).toBe(201);
+      expect(second.json().circleIdentifier).toBe('TUG8');
+    });
+
+    it('returns a 409 with a clear message when retries are exhausted', async () => {
+      generateCircleIdentifierMock.mockReturnValue('MEK4');
+      // First call above consumes the 'MEK4' slot for real; second is guaranteed to collide every attempt.
+      await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Exhausted Circle One', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+
+      const response = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/v1/circles',
+        cookies: { rc_session: creator.sessionToken },
+        payload: { circleType: 'custom', name: 'Exhausted Circle Two', area: { areaLabel: 'Somewhere' }, creatorStationId },
+      });
+      expect(response.statusCode).toBe(409);
+      expect(response.json().error.message).toMatch(/unique Circle Identifier/i);
+
+      generateCircleIdentifierMock.mockReset();
+      generateCircleIdentifierMock.mockImplementation(actualGenerateCircleIdentifier);
+    });
   });
 });
