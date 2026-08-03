@@ -18,11 +18,24 @@ export const users = pgTable(
      * from an auth provider). Each has its own visibility flag so a member
      * can share, say, a phone number with their Circles without also
      * exposing a mailing address.
+     *
+     * `contactEmail` is deliberately independent from the login `email`
+     * column above -- it's the address shared with fellow Circle members,
+     * not the account-linking key. When null, callers fall back to the
+     * login email as a live default rather than copying it in, so it keeps
+     * tracking the login email until the member explicitly overrides it.
      */
+    contactEmail: text('contact_email'),
     phone: text('phone'),
     address: text('address'),
+    city: text('city'),
+    state: text('state'),
+    zip: text('zip'),
+    /** Governs `contactEmail`. */
     emailVisibleToCircle: boolean('email_visible_to_circle').notNull().default(false),
+    /** Governs `phone`. */
     phoneVisibleToCircle: boolean('phone_visible_to_circle').notNull().default(false),
+    /** Governs `address`, `city`, `state`, and `zip` together as one mailing address. */
     addressVisibleToCircle: boolean('address_visible_to_circle').notNull().default(false),
     /** Descriptive label shown only in the development login picker. Always null in production data. */
     devPersona: text('dev_persona'),

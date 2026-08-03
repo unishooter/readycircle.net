@@ -16,11 +16,17 @@ export interface MembershipDetail {
   stationStatus: 'active' | 'hypothetical' | 'archived';
   userId: string;
   memberDisplayName: string;
+  /** Login email -- used as a fallback when `contactEmail` is unset (see `mapMembership`). */
   email: string | null;
+  /** Explicit contact-email override, independent of `email`. */
+  contactEmail: string | null;
   emailVisibleToCircle: boolean;
   phone: string | null;
   phoneVisibleToCircle: boolean;
   address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   addressVisibleToCircle: boolean;
   status: 'active' | 'removed';
   joinedAt: Date;
@@ -33,10 +39,14 @@ interface MembershipRow {
   stationStatus: string;
   memberDisplayName: string;
   email: string | null;
+  contactEmail: string | null;
   emailVisibleToCircle: boolean;
   phone: string | null;
   phoneVisibleToCircle: boolean;
   address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   addressVisibleToCircle: boolean;
 }
 
@@ -48,10 +58,14 @@ function membershipQuery(db: Database) {
       stationStatus: stations.status,
       memberDisplayName: users.displayName,
       email: users.email,
+      contactEmail: users.contactEmail,
       emailVisibleToCircle: users.emailVisibleToCircle,
       phone: users.phone,
       phoneVisibleToCircle: users.phoneVisibleToCircle,
       address: users.address,
+      city: users.city,
+      state: users.state,
+      zip: users.zip,
       addressVisibleToCircle: users.addressVisibleToCircle,
     })
     .from(circleMemberships)
@@ -69,10 +83,14 @@ function toMembershipDetail(row: MembershipRow, role: 'coordinator' | 'member'):
     userId: row.membership.userId,
     memberDisplayName: row.memberDisplayName,
     email: row.email,
+    contactEmail: row.contactEmail,
     emailVisibleToCircle: row.emailVisibleToCircle,
     phone: row.phone,
     phoneVisibleToCircle: row.phoneVisibleToCircle,
     address: row.address,
+    city: row.city,
+    state: row.state,
+    zip: row.zip,
     addressVisibleToCircle: row.addressVisibleToCircle,
     status: row.membership.status as 'active' | 'removed',
     joinedAt: row.membership.joinedAt,

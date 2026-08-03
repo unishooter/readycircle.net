@@ -5,6 +5,7 @@ import {
   canViewCircle,
   shapeMemberContact,
   wouldLeaveCircleWithoutCoordinator,
+  type RawUserContact,
 } from '@readycircle/domain';
 import type { CreateMembershipInput, MembershipResponse, UpdateMembershipInput } from '@readycircle/contracts';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
@@ -22,6 +23,19 @@ import {
 } from './repository.js';
 
 function mapMembership(detail: MembershipDetail): MembershipResponse {
+  const contactInput: RawUserContact = {
+    // A member's contact email defaults to their login email until they set
+    // an explicit override -- see the `contactEmail` column comment.
+    email: detail.contactEmail ?? detail.email,
+    emailVisibleToCircle: detail.emailVisibleToCircle,
+    phone: detail.phone,
+    phoneVisibleToCircle: detail.phoneVisibleToCircle,
+    address: detail.address,
+    city: detail.city,
+    state: detail.state,
+    zip: detail.zip,
+    addressVisibleToCircle: detail.addressVisibleToCircle,
+  };
   return {
     id: detail.id,
     circleId: detail.circleId,
@@ -30,7 +44,7 @@ function mapMembership(detail: MembershipDetail): MembershipResponse {
     stationStatus: detail.stationStatus,
     userId: detail.userId,
     memberDisplayName: detail.memberDisplayName,
-    contact: shapeMemberContact(detail),
+    contact: shapeMemberContact(contactInput),
     role: detail.role,
     status: detail.status,
     joinedAt: detail.joinedAt.toISOString(),

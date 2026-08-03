@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { DEFAULT_SCENARIO, type Scenario } from '@readycircle/contracts';
+import { DEFAULT_SCENARIO, type MemberContact, type Scenario } from '@readycircle/contracts';
 import { Badge, Button, Card, CardTitle, Select } from '@readycircle/ui';
 import {
   useAddMember,
@@ -19,6 +19,13 @@ import { InviteCard } from '../../../features/invites/InviteCard.js';
 import { CircleContactsCard } from '../../../features/contacts/CircleContactsCard.js';
 import { VersionStatusBadge } from '../plans/plan-status.js';
 import { formatOccurrence } from '../nets/format.js';
+
+/** Combines street/city/state/zip into one display line, gracefully handling any subset being shared. */
+function formatSharedAddress(contact: MemberContact): string | null {
+  const cityStateZip = [contact.city, [contact.state, contact.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const combined = [contact.address, cityStateZip].filter((part) => part && part.length > 0).join(', ');
+  return combined || null;
+}
 
 export function CircleDetailPage() {
   const { circleId } = useParams<{ circleId: string }>();
@@ -264,7 +271,14 @@ export function CircleDetailPage() {
         ) : (
           <ul className="mt-4 divide-y divide-black/5">
             {members.map((member) => {
-              const hasSharedContact = member.contact.email || member.contact.phone || member.contact.address;
+              const hasSharedContact =
+                member.contact.email ||
+                member.contact.phone ||
+                member.contact.address ||
+                member.contact.city ||
+                member.contact.state ||
+                member.contact.zip;
+              const formattedAddress = formatSharedAddress(member.contact);
               const isExpanded = expandedContactIds.has(member.id);
               return (
                 <li key={member.id} className="py-3">
@@ -332,10 +346,10 @@ export function CircleDetailPage() {
                               <dd className="text-ink/80">{member.contact.phone}</dd>
                             </div>
                           ) : null}
-                          {member.contact.address ? (
+                          {formattedAddress ? (
                             <div className="flex gap-2">
                               <dt className="w-16 shrink-0 font-medium text-ink/50">Address</dt>
-                              <dd className="text-ink/80">{member.contact.address}</dd>
+                              <dd className="text-ink/80">{formattedAddress}</dd>
                             </div>
                           ) : null}
                         </dl>

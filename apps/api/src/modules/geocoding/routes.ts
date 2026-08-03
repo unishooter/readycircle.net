@@ -1,7 +1,14 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { geocodingSearchQuerySchema, geocodingSearchResponseSchema } from '@readycircle/contracts';
+import {
+  geocodingSearchQuerySchema,
+  geocodingSearchResponseSchema,
+  zipLookupParamsSchema,
+  zipLookupResponseSchema,
+} from '@readycircle/contracts';
 import { requireAuth } from '../../plugins/session.js';
+import { NotFoundError } from '../../lib/errors.js';
 import { searchPlaces } from './nominatim-client.js';
+import { lookupUsZip } from './zippopotam-client.js';
 
 /**
  * Backs the "broad area" (zip/city/county/state) location search used when
@@ -41,6 +48,33 @@ export const geocodingRoutes: FastifyPluginAsyncZod = async (app) => {
         app.log.error({ err: error }, 'Nominatim geocoding search failed');
         return { results: [] };
       }
+    },
+  );
+
+  // Backs the Account page's zip-driven city/state autofill -- see
+  // `zippopotam-client.ts`. A miss (unknown zip) or upstream failure both
+  // surface as 404 so the client just falls back to manual entry.
+  app.get(
+    '/geocoding/zip/:zip',
+    {
+      schema: {
+        tags: ['geocoding'],
+        params: zipLookupParamsSchema,
+        response: { 200: zipLookupResponseSchema },
+      },
+    },
+    async (request) => {
+      requireAuth(request);
+
+      let result;
+      try {
+        result = await lookupUsZip(request.params.zip);
+      } catch (error) {
+        app.log.error({ err: error }, 'Zippopotam zip lookup failed');
+        throw new NotFoundError('Zip code not found.');
+      }
+      if (!result) throw new NotFoundError('Zip code not found.');
+      return result;
     },
   );
 };

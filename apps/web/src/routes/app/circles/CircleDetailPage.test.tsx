@@ -33,7 +33,7 @@ function makeMember(overrides: Partial<MembershipResponse> = {}): MembershipResp
     stationStatus: 'active',
     userId: 'user-1',
     memberDisplayName: 'Ana Rivera',
-    contact: { email: null, phone: null, address: null },
+    contact: { email: null, phone: null, address: null, city: null, state: null, zip: null },
     role: 'member',
     status: 'active',
     joinedAt: '2025-01-05T00:00:00.000Z',
@@ -114,7 +114,9 @@ describe('CircleDetailPage members list', () => {
   it('reveals only the contact fields a member has shared, on demand', async () => {
     const user = userEvent.setup();
     membersResult = {
-      data: { items: [makeMember({ contact: { email: null, phone: '555-0100', address: null } })] },
+      data: {
+        items: [makeMember({ contact: { email: null, phone: '555-0100', address: null, city: null, state: null, zip: null } })],
+      },
       isLoading: false,
     };
     renderPage();
@@ -125,5 +127,48 @@ describe('CircleDetailPage members list', () => {
 
     await user.click(screen.getByRole('button', { name: /hide contact info/i }));
     expect(screen.queryByText('555-0100')).not.toBeInTheDocument();
+  });
+
+  it('shows a show-contact-info toggle when only city/state/zip are shared', () => {
+    membersResult = {
+      data: {
+        items: [makeMember({ contact: { email: null, phone: null, address: null, city: 'Springfield', state: 'IL', zip: '62704' } })],
+      },
+      isLoading: false,
+    };
+    renderPage();
+    expect(screen.getByRole('button', { name: /show contact info/i })).toBeInTheDocument();
+  });
+
+  it('combines street, city, state, and zip into one address line', async () => {
+    const user = userEvent.setup();
+    membersResult = {
+      data: {
+        items: [
+          makeMember({
+            contact: { email: null, phone: null, address: '99 Birch Ln', city: 'Springfield', state: 'IL', zip: '62704' },
+          }),
+        ],
+      },
+      isLoading: false,
+    };
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /show contact info/i }));
+    expect(screen.getByText('99 Birch Ln, Springfield, IL 62704')).toBeInTheDocument();
+  });
+
+  it('gracefully formats a partial address when only some parts are shared', async () => {
+    const user = userEvent.setup();
+    membersResult = {
+      data: {
+        items: [makeMember({ contact: { email: null, phone: null, address: null, city: 'Springfield', state: null, zip: null } })],
+      },
+      isLoading: false,
+    };
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /show contact info/i }));
+    expect(screen.getByText('Springfield')).toBeInTheDocument();
   });
 });

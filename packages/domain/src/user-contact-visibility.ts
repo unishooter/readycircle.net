@@ -1,9 +1,14 @@
 export interface RawUserContact {
+  /** Whatever the caller decides is the "effective" email -- e.g. a member's contact-email override, falling back to their login email. */
   email: string | null;
   emailVisibleToCircle: boolean;
   phone: string | null;
   phoneVisibleToCircle: boolean;
   address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  /** Governs `address`, `city`, `state`, and `zip` together as one mailing address. */
   addressVisibleToCircle: boolean;
 }
 
@@ -11,6 +16,9 @@ export interface ShapedMemberContact {
   email: string | null;
   phone: string | null;
   address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
 }
 
 /**
@@ -26,5 +34,8 @@ export function shapeMemberContact(raw: RawUserContact): ShapedMemberContact {
     email: raw.emailVisibleToCircle ? raw.email : null,
     phone: raw.phoneVisibleToCircle ? raw.phone : null,
     address: raw.addressVisibleToCircle ? raw.address : null,
+    city: raw.addressVisibleToCircle ? raw.city : null,
+    state: raw.addressVisibleToCircle ? raw.state : null,
+    zip: raw.addressVisibleToCircle ? raw.zip : null,
   };
 }

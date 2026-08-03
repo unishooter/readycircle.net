@@ -17,6 +17,9 @@ export const memberContactSchema = z.object({
   email: z.string().nullable(),
   phone: z.string().nullable(),
   address: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  zip: z.string().nullable(),
 });
 export type MemberContact = z.infer<typeof memberContactSchema>;
 
