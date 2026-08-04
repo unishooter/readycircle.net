@@ -62,7 +62,7 @@ export function StationDetailPage() {
         </div>
         {station.isOwner && station.status !== 'archived' ? (
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => navigate(`/app/stations/${station.id}/edit`)}>
+            <Button variant="primary" size="sm" onClick={() => navigate(`/app/stations/${station.id}/edit`)}>
               Edit
             </Button>
             <Button variant="danger" size="sm" onClick={() => void handleArchive()} disabled={archiveStation.isPending}>

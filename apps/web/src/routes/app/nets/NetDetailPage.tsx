@@ -93,9 +93,9 @@ export function NetDetailPage() {
             {net.viewerCanManage ? (
               <>
                 <Link to={`/app/nets/${net.id}/edit`}>
-                  <Button variant="secondary">Edit</Button>
+                  <Button variant="primary">Edit</Button>
                 </Link>
-                <Button variant="secondary" onClick={() => void handleArchive()} disabled={archiveNet.isPending}>
+                <Button variant="danger" onClick={() => void handleArchive()} disabled={archiveNet.isPending}>
                   Archive
                 </Button>
               </>

@@ -123,7 +123,7 @@ export function CircleDetailPage() {
         </div>
         {isCoordinator ? (
           <Link to={`/app/circles/${circle.id}/edit`}>
-            <Button variant="secondary" size="sm">
+            <Button variant="primary" size="sm">
               Edit Circle
             </Button>
           </Link>
