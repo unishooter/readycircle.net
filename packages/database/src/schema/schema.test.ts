@@ -69,4 +69,26 @@ describe('database schema', () => {
     // Legacy free-text field predating the map picker -- still present for fallback display.
     expect(columns.gridOrLocalityLabel).toBeDefined();
   });
+
+  it('gives stations an optional, nullable callsign for APRS matching', () => {
+    const columns = getTableColumns(schema.stations);
+    expect(columns.callsign).toBeDefined();
+    expect(columns.callsign.notNull).toBe(false);
+  });
+
+  it('defines a station_aprs_positions table keyed by stationId with a spatial index', () => {
+    expect(schema.stationAprsPositions).toBeDefined();
+    expect(getTableName(schema.stationAprsPositions)).toBe('station_aprs_positions');
+    const columns = getTableColumns(schema.stationAprsPositions);
+    expect(columns.stationId.primary).toBe(true);
+    expect(columns.sourceCallsign.notNull).toBe(true);
+    expect(columns.latitude.notNull).toBe(true);
+    expect(columns.longitude.notNull).toBe(true);
+    expect(columns.geog).toBeDefined();
+    expect(columns.symbolTable.notNull).toBe(true);
+    expect(columns.symbolCode.notNull).toBe(true);
+    expect(columns.comment.notNull).toBe(false);
+    expect(columns.heardAt.notNull).toBe(true);
+    expect(columns.rawPacket.notNull).toBe(true);
+  });
 });

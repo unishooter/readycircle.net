@@ -111,6 +111,7 @@ export async function createStationRecord(
       antennaType: input.antennaType ?? null,
       antennaHeightFeet: input.antennaHeightFeet ?? null,
       backupPower: input.backupPower,
+      callsign: input.callsign ?? null,
     })
     .returning();
   if (!station) throw new Error('Failed to create station.');
@@ -161,6 +162,7 @@ export async function updateStationRecord(
   if (input.antennaType !== undefined) stationFields.antennaType = input.antennaType;
   if (input.antennaHeightFeet !== undefined) stationFields.antennaHeightFeet = input.antennaHeightFeet;
   if (input.backupPower !== undefined) stationFields.backupPower = input.backupPower;
+  if (input.callsign !== undefined) stationFields.callsign = input.callsign;
 
   if (Object.keys(stationFields).length > 0) {
     stationFields.updatedAt = new Date();

@@ -22,6 +22,20 @@ import {
 export const locationSourceSchema = z.enum(['manual', 'map_click', 'geocode_search']);
 export type LocationSource = z.infer<typeof locationSourceSchema>;
 
+/**
+ * Purely for matching the station's own APRS beacons against the APRS-IS
+ * listener (see `@readycircle/aprs` and `apps/worker/src/aprs`) -- light
+ * validation only, consistent with this codebase's precedent (e.g. the zip
+ * code field). Not unique: SSIDs (`-9`, `-5`, etc.) make legitimate
+ * collisions on the bare callsign possible, and the match key is always the
+ * full string including any `-SSID`.
+ */
+export const callsignSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Z0-9]{3,7}(-[0-9]{1,2})?$/i, 'Enter a valid callsign, e.g. KI5ABC or KI5ABC-9')
+  .transform((value) => value.toUpperCase());
+
 export const stationLocationInputSchema = z.object({
   areaLabel: z.string().max(120).optional(),
   /**
@@ -69,6 +83,7 @@ export const createStationSchema = z
     willingToActAsNetControl: z.boolean().default(false),
     receiveOnly: z.boolean().default(false),
     visibility: stationVisibilitySchema.default('private'),
+    callsign: callsignSchema.optional(),
     ...stationRfFields,
   })
   .superRefine((value, ctx) => {
@@ -111,6 +126,7 @@ export const updateStationSchema = z.object({
   receiveOnly: z.boolean().optional(),
   visibility: stationVisibilitySchema.optional(),
   status: stationStatusSchema.optional(),
+  callsign: callsignSchema.nullable().optional(),
   transmitPowerWatts: z.number().int().min(1).max(1500).nullable().optional(),
   antennaType: antennaTypeSchema.nullable().optional(),
   antennaHeightFeet: z.number().int().min(0).max(500).nullable().optional(),
@@ -143,6 +159,7 @@ export const stationResponseSchema = z.object({
   willingToActAsNetControl: z.boolean(),
   receiveOnly: z.boolean(),
   visibility: stationVisibilitySchema,
+  callsign: z.string().nullable(),
   transmitPowerWatts: z.number().nullable(),
   antennaType: antennaTypeSchema.nullable(),
   antennaHeightFeet: z.number().nullable(),

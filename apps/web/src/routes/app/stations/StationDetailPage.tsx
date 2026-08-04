@@ -55,7 +55,10 @@ export function StationDetailPage() {
               {STATION_STATUS_LABELS[station.status] ?? station.status}
             </Badge>
           </div>
-          <p className="mt-1 text-sm text-ink/60">{STATION_TYPE_LABELS[station.stationType]}</p>
+          <p className="mt-1 text-sm text-ink/60">
+            {STATION_TYPE_LABELS[station.stationType]}
+            {station.callsign ? <> &middot; {station.callsign}</> : null}
+          </p>
         </div>
         {station.isOwner && station.status !== 'archived' ? (
           <div className="flex gap-2">

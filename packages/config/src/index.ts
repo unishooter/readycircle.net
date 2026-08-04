@@ -72,6 +72,16 @@ const envSchema = z.object({
   // not configured (local development). Relative paths resolve against the
   // process working directory.
   DOCUMENT_STORAGE_PATH: z.string().default('.data/documents'),
+
+  // Persistent APRS-IS TCP listener (apps/worker) for live station
+  // tracking. Off by default: the worker only connects when
+  // APRS_IS_CALLSIGN is set, since APRS-IS requires an authenticated
+  // (even if receive-only) login. PASSCODE=-1 means read-only access,
+  // which is intentional -- this feature never transmits.
+  APRS_IS_HOST: z.string().default('rotate.aprs2.net'),
+  APRS_IS_PORT: z.coerce.number().int().positive().default(14580),
+  APRS_IS_CALLSIGN: z.string().default(''),
+  APRS_IS_PASSCODE: z.string().default('-1'),
 });
 
 export type RawEnv = z.infer<typeof envSchema>;
@@ -123,6 +133,14 @@ export interface AppConfig {
   documents: {
     /** Local filesystem fallback used when no S3 bucket is configured. */
     storagePath: string;
+  };
+  aprs: {
+    host: string;
+    port: number;
+    callsign: string;
+    passcode: string;
+    /** Whether the worker should start the APRS-IS listener at all. */
+    isConfigured: boolean;
   };
 }
 
@@ -222,6 +240,13 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     documents: {
       storagePath: env.DOCUMENT_STORAGE_PATH,
+    },
+    aprs: {
+      host: env.APRS_IS_HOST,
+      port: env.APRS_IS_PORT,
+      callsign: env.APRS_IS_CALLSIGN,
+      passcode: env.APRS_IS_PASSCODE,
+      isConfigured: Boolean(env.APRS_IS_CALLSIGN),
     },
   };
 }

@@ -261,6 +261,7 @@ export class StationService {
       willingToActAsNetControl: record.station.willingToActAsNetControl,
       receiveOnly: record.station.receiveOnly,
       visibility,
+      callsign: record.station.callsign,
       transmitPowerWatts: record.station.transmitPowerWatts,
       antennaType: record.station.antennaType as AntennaType | null,
       antennaHeightFeet: record.station.antennaHeightFeet,

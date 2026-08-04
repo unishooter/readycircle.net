@@ -50,6 +50,25 @@ describe('StationWizardPage', () => {
     expect(screen.getByRole('button', { name: /next/i })).toBeEnabled();
   });
 
+  it('shows an optional callsign field on the identity step and includes it in the review and submission', async () => {
+    const user = userEvent.setup();
+    mutateAsyncMock.mockResolvedValue({ id: 'station-9' });
+    renderWizard();
+
+    await user.type(screen.getByLabelText(/station name/i), 'Home base');
+    await user.type(screen.getByLabelText(/callsign/i), 'ki5abc-9');
+
+    // Skip through the remaining steps to Review (Location, Capability,
+    // Antenna & power, Experience, Goals, Participation & privacy).
+    for (let i = 0; i < 7; i += 1) {
+      await user.click(screen.getByRole('button', { name: /next/i }));
+    }
+
+    expect(screen.getByText('ki5abc-9')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /create station/i }));
+    expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ callsign: 'ki5abc-9' }));
+  });
+
   it('advances through steps to the location step, defaulting to the broad-area search', async () => {
     const user = userEvent.setup();
     renderWizard();

@@ -157,6 +157,7 @@ notable ones:
 | `DOCUMENT_STORAGE_PATH` | Local directory for rendered plan PDFs when no S3 bucket is configured (default `.data/documents`). |
 | `REPEATERBOOK_APP_TOKEN` | Optional in all environments. Enables the "Find repeaters near this Circle" RepeaterBook import (see [ADR 12](docs/decisions/0012-repeaters-gear-check-scenarios.md)); without it the import UI reports "not configured" and manual repeater entry still works. |
 | `INVITE_ONLY_ACCESS` | Default `false`. When `true`, brand-new account creation is blocked without a valid Circle invite link; existing users can always sign back in. An admin can override this at runtime from `/app/admin` -- the override takes precedence over this env value. See [ADR 13](docs/decisions/0013-invite-only-access-and-admin-panel.md). |
+| `APRS_IS_HOST`, `APRS_IS_PORT`, `APRS_IS_CALLSIGN`, `APRS_IS_PASSCODE` | Optional in all environments. The worker's persistent APRS-IS listener for live station tracking only starts once `APRS_IS_CALLSIGN` is set; without it the map card shows an empty state. Defaults: `rotate.aprs2.net`, `14580`, `''`, `-1` (receive-only). See [ADR 17](docs/decisions/0017-aprs-live-tracking.md). |
 
 Configuration is loaded and validated exactly once, at process startup, by
 `packages/config`. Invalid or missing required values cause the process to
@@ -307,6 +308,33 @@ used for stations (see [ADR 9](docs/decisions/0009-mgrs-location-capture.md)):
 
 See [ADR 16](docs/decisions/0016-circle-grid-location.md) for the full
 design rationale.
+
+## APRS live station tracking
+
+A Circle's page can show a live map of member stations currently
+beaconing over APRS. A station opts in by setting an optional callsign
+on its edit page (e.g. `KI5ABC-9`) -- purely a match key for APRS, with no
+other effect:
+
+- `apps/worker` runs a persistent APRS-IS TCP listener (off by default;
+  see the `APRS_IS_*` env vars above) that logs in with a budlist filter
+  scoped to configured callsigns, and refreshes that filter live as
+  callsigns are added or removed.
+- Heard position packets are matched to a station by callsign and upserted
+  into `station_aprs_positions`; `GET /api/v1/circles/:circleId/aprs-positions`
+  returns each member station's latest position to any active Circle member.
+- The map (`CircleLiveMap`) polls that endpoint every 60 seconds, auto-fits
+  bounds to the reporting stations, and mutes a marker once its position is
+  more than 2 hours old.
+- Unlike a station's manually-set home location, APRS-derived coordinates
+  are shown to every Circle member with no precision-based redaction -- an
+  APRS beacon is already public over RF and on `aprs.fi`/`findu.com`.
+- v1 only decodes uncompressed position reports; Base91-compressed
+  positions (common on some modern trackers) are not yet parsed.
+
+See [ADR 17](docs/decisions/0017-aprs-live-tracking.md) for the full
+design rationale, including the aprs.fi-polling alternative that was
+considered and rejected.
 
 ## Tests
 

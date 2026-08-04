@@ -137,6 +137,12 @@ export function StationWizardPage() {
                 <dt className="text-ink/60">Type</dt>
                 <dd className="font-medium text-ink">{STATION_TYPE_LABELS[draft.stationType]}</dd>
               </div>
+              {draft.callsign ? (
+                <div className="flex justify-between border-b border-black/5 pb-2">
+                  <dt className="text-ink/60">Callsign</dt>
+                  <dd className="font-medium text-ink">{draft.callsign}</dd>
+                </div>
+              ) : null}
               {isPlanned ? (
                 <div className="flex justify-between border-b border-black/5 pb-2">
                   <dt className="text-ink/60">Status</dt>

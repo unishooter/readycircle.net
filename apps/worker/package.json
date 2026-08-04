@@ -12,6 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.700.0",
     "@react-pdf/renderer": "^4.1.6",
+    "@readycircle/aprs": "workspace:*",
     "@readycircle/aws": "workspace:*",
     "@readycircle/config": "workspace:*",
     "@readycircle/database": "workspace:*",

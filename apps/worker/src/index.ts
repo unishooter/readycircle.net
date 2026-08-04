@@ -10,6 +10,8 @@ import { JobHandlerRegistry } from './jobs/registry.js';
 import { createPlanGenerationHandler, PLAN_GENERATION_JOB_TYPE } from './jobs/handlers/plan-generation.js';
 import { createDocumentGenerationHandler, DOCUMENT_GENERATION_JOB_TYPE } from './jobs/handlers/document-generation.js';
 import { QueuePoller } from './queue-poller.js';
+import { AprsIsListener } from './aprs/aprs-is-listener.js';
+import { loadCallsignMap, upsertStationAprsPosition } from './aprs/repository.js';
 
 // See apps/api/src/index.ts for why this is safe in production too.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,6 +74,29 @@ async function main() {
     pollers.push(new QueuePoller({ name: queue.name, queueUrl: queue.queueUrl, client: sqsClient, registry, logger }));
   }
 
+  interface Runnable {
+    run(): Promise<void>;
+    stop(): void;
+  }
+  const runnables: Runnable[] = [...pollers];
+
+  if (config.aprs.isConfigured) {
+    runnables.push(
+      new AprsIsListener({
+        host: config.aprs.host,
+        port: config.aprs.port,
+        loginCallsign: config.aprs.callsign,
+        passcode: config.aprs.passcode,
+        logger,
+        loadCallsignMap: () => loadCallsignMap(db),
+        onPosition: ({ stationId, position, rawLine }) =>
+          upsertStationAprsPosition(db, { stationId, position, rawLine, heardAt: position.timestamp ?? new Date() }),
+      }),
+    );
+  } else {
+    logger.warn('APRS_IS_CALLSIGN not configured, skipping APRS-IS listener (expected in local development)');
+  }
+
   process.on('uncaughtException', (error) => {
     logger.fatal({ err: error }, 'uncaught exception');
     process.exit(1);
@@ -85,15 +110,18 @@ async function main() {
     logger.warn('worker started with no active queue pollers; idling. Configure AWS_SQS_*_QUEUE_URL to enable processing.');
   }
 
-  const runPromises = pollers.map((poller) => poller.run());
-  logger.info({ appEnv: config.appEnv, activeQueues: pollers.length }, 'ReadyCircle worker started');
+  const runPromises = runnables.map((runnable) => runnable.run());
+  logger.info(
+    { appEnv: config.appEnv, activeQueues: pollers.length, aprsEnabled: config.aprs.isConfigured },
+    'ReadyCircle worker started',
+  );
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'shutting down');
-    pollers.forEach((poller) => poller.stop());
+    runnables.forEach((runnable) => runnable.stop());
     try {
       await Promise.race([Promise.all(runPromises), sleep(15000)]);
       await closeDatabase();

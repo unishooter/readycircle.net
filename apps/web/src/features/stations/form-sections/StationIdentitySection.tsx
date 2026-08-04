@@ -36,6 +36,19 @@ export function StationIdentitySection({ draft, onChange, autoFocusName }: Stati
           </Select>
         )}
       </Field>
+      <Field
+        label="Callsign"
+        hint="Optional -- e.g. KI5ABC-9. Used to match this station's own APRS beacons for live map tracking."
+      >
+        {(id) => (
+          <TextInput
+            id={id}
+            value={draft.callsign ?? ''}
+            onChange={(event) => onChange({ callsign: event.target.value || undefined })}
+            placeholder="KI5ABC-9"
+          />
+        )}
+      </Field>
     </div>
   );
 }

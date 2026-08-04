@@ -27,6 +27,7 @@ function toDraft(station: StationResponse): StationFormDraft {
       precision: station.location.precision,
     },
     capabilities: station.capabilities,
+    callsign: station.callsign ?? undefined,
     experienceLevel: station.experienceLevel ?? 'new',
     authorization: station.authorization ?? 'frs_user',
     goals: station.goals,
@@ -115,6 +116,7 @@ export function StationEditPage() {
       transmitPowerWatts: draft.transmitPowerWatts ?? null,
       antennaType: draft.antennaType ?? null,
       antennaHeightFeet: draft.antennaHeightFeet ?? null,
+      callsign: draft.callsign ?? null,
     });
     navigate(`/app/stations/${stationId}`);
   }

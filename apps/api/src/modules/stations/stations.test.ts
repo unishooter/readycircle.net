@@ -184,6 +184,56 @@ describe('stations API', () => {
     expect(getResponse.json().status).toBe('archived');
   });
 
+  it('accepts an optional callsign, normalized to uppercase, and returns it in the response', async () => {
+    const response = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/stations',
+      cookies: { rc_session: owner.sessionToken },
+      payload: stationPayload({ callsign: 'ki5abc-9' }),
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().callsign).toBe('KI5ABC-9');
+  });
+
+  it('defaults callsign to null when not provided, and allows setting/clearing it via PATCH', async () => {
+    const createResponse = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/stations',
+      cookies: { rc_session: owner.sessionToken },
+      payload: stationPayload(),
+    });
+    expect(createResponse.json().callsign).toBeNull();
+    const stationId = createResponse.json().id;
+
+    const setResponse = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/v1/stations/${stationId}`,
+      cookies: { rc_session: owner.sessionToken },
+      payload: { callsign: 'N0CALL' },
+    });
+    expect(setResponse.statusCode).toBe(200);
+    expect(setResponse.json().callsign).toBe('N0CALL');
+
+    const clearResponse = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/v1/stations/${stationId}`,
+      cookies: { rc_session: owner.sessionToken },
+      payload: { callsign: null },
+    });
+    expect(clearResponse.statusCode).toBe(200);
+    expect(clearResponse.json().callsign).toBeNull();
+  });
+
+  it('rejects a malformed callsign', async () => {
+    const response = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/stations',
+      cookies: { rc_session: owner.sessionToken },
+      payload: stationPayload({ callsign: 'not a callsign!' }),
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
   it('rejects invalid station payloads with a validation error shape', async () => {
     const response = await ctx.app.inject({
       method: 'POST',

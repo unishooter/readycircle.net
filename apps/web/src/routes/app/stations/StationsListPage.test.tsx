@@ -20,6 +20,7 @@ function makeStation(overrides: Partial<StationResponse> = {}): StationResponse 
       longitude: -89.5,
     },
     capabilities: ['frs'],
+    callsign: null,
     experienceLevel: 'new',
     authorization: 'frs_user',
     goals: ['nearby_family_communication'],

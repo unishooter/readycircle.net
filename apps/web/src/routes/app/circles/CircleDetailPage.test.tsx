@@ -72,6 +72,10 @@ vi.mock('../../../features/repeaters/CircleRepeatersCard.js', () => ({
   CircleRepeatersCard: () => null,
 }));
 
+vi.mock('../../../features/aprs/CircleLiveMap.js', () => ({
+  CircleLiveMap: () => null,
+}));
+
 vi.mock('../../../features/plans/CircleGearSummaryCard.js', () => ({
   CircleGearSummaryCard: () => null,
 }));

@@ -13,6 +13,7 @@ import { useStations } from '../../../features/stations/api.js';
 import { useCirclePlans, useGeneratePlan } from '../../../features/plans/api.js';
 import { useCircleNets } from '../../../features/nets/api.js';
 import { CircleRepeatersCard } from '../../../features/repeaters/CircleRepeatersCard.js';
+import { CircleLiveMap } from '../../../features/aprs/CircleLiveMap.js';
 import { CircleGearSummaryCard } from '../../../features/plans/CircleGearSummaryCard.js';
 import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
 import { InviteCard } from '../../../features/invites/InviteCard.js';
@@ -267,6 +268,8 @@ export function CircleDetailPage() {
 
         <CircleGearSummaryCard plans={plans} />
       </div>
+
+      <CircleLiveMap circleId={circle.id} />
 
       <CircleRepeatersCard circleId={circle.id} isCoordinator={isCoordinator} />
 

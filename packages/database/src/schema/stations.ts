@@ -53,6 +53,12 @@ export const stations = pgTable('stations', {
     .array()
     .notNull()
     .default(sql`'{}'::text[]`),
+  /**
+   * Optional, purely for matching the station's own APRS beacons against
+   * the APRS-IS listener (see `@readycircle/aprs`) -- not unique, since
+   * SSIDs make legitimate collisions on the bare callsign possible.
+   */
+  callsign: text('callsign'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -144,5 +150,35 @@ export const stationEquipment = pgTable(
   },
   (table) => ({
     uniquePair: uniqueIndex('station_equipment_unique_idx').on(table.stationId, table.equipmentId),
+  }),
+);
+
+/**
+ * One row per station, upserted by the worker's `AprsIsListener` whenever a
+ * matching position packet is heard on APRS-IS -- mirrors `stationLocations`'s
+ * shape. Deliberately not visibility-gated by `stationPrivacy`/`precision`;
+ * see docs/decisions/0017-aprs-live-tracking.md.
+ */
+export const stationAprsPositions = pgTable(
+  'station_aprs_positions',
+  {
+    stationId: uuid('station_id')
+      .primaryKey()
+      .references(() => stations.id, { onDelete: 'cascade' }),
+    /** Denormalized copy of the callsign the packet was heard from, for display/debugging if it ever differs from the station's configured value. */
+    sourceCallsign: text('source_callsign').notNull(),
+    latitude: doublePrecision('latitude').notNull(),
+    longitude: doublePrecision('longitude').notNull(),
+    geog: geographyPoint('geog'),
+    symbolTable: text('symbol_table').notNull(),
+    symbolCode: text('symbol_code').notNull(),
+    comment: text('comment'),
+    heardAt: timestamp('heard_at', { withTimezone: true }).notNull(),
+    /** Raw TNC2 packet line, kept for debugging parser/matching issues. */
+    rawPacket: text('raw_packet').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    geogGistIdx: index('station_aprs_positions_geog_gist_idx').using('gist', table.geog),
   }),
 );

@@ -217,6 +217,9 @@ importers:
       '@react-pdf/renderer':
         specifier: ^4.1.6
         version: 4.5.1(react@18.3.1)
+      '@readycircle/aprs':
+        specifier: workspace:*
+        version: link:../../packages/aprs
       '@readycircle/aws':
         specifier: workspace:*
         version: link:../../packages/aws
@@ -263,6 +266,15 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.23.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)(jsdom@25.0.1)
+
+  packages/aprs:
+    devDependencies:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

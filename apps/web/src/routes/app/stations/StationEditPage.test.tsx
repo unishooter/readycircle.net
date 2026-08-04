@@ -19,6 +19,7 @@ const baseStation: StationResponse = {
     longitude: -89.5,
   },
   capabilities: ['frs'],
+  callsign: null,
   experienceLevel: 'new',
   authorization: 'frs_user',
   goals: ['nearby_family_communication'],
@@ -92,6 +93,29 @@ describe('StationEditPage', () => {
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ name: 'Renamed Station' }));
+  });
+
+  it('pre-populates the callsign field and saves an edited value', async () => {
+    const user = userEvent.setup();
+    renderEditPage();
+    expect(screen.getByLabelText(/callsign/i)).toHaveValue('');
+
+    await user.type(screen.getByLabelText(/callsign/i), 'N0CALL-5');
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ callsign: 'N0CALL-5' }));
+  });
+
+  it('sends an explicit null to clear an existing callsign', async () => {
+    stationOverride = { callsign: 'KI5ABC-9' };
+    const user = userEvent.setup();
+    renderEditPage();
+    expect(screen.getByLabelText(/callsign/i)).toHaveValue('KI5ABC-9');
+
+    await user.clear(screen.getByLabelText(/callsign/i));
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ callsign: null }));
   });
 
   it("shows a not-editable message for a non-owner instead of the form", () => {
