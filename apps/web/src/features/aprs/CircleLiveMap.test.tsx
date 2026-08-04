@@ -35,7 +35,7 @@ describe('CircleLiveMap', () => {
   it('shows an empty state when no member station has a live position yet', () => {
     positionsResult = { data: { items: [] }, isLoading: false };
     render(<CircleLiveMap circleId="circle-1" />);
-    expect(screen.getByText(/add a callsign to your station to enable live tracking/i)).toBeInTheDocument();
+    expect(screen.getByText(/add your aprs mycall to your station to enable live tracking/i)).toBeInTheDocument();
   });
 
   it('renders one marker per station position', () => {

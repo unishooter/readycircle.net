@@ -98,9 +98,9 @@ describe('StationEditPage', () => {
   it('pre-populates the callsign field and saves an edited value', async () => {
     const user = userEvent.setup();
     renderEditPage();
-    expect(screen.getByLabelText(/callsign/i)).toHaveValue('');
+    expect(screen.getByLabelText(/aprs mycall/i)).toHaveValue('');
 
-    await user.type(screen.getByLabelText(/callsign/i), 'N0CALL-5');
+    await user.type(screen.getByLabelText(/aprs mycall/i), 'N0CALL-5');
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ callsign: 'N0CALL-5' }));
@@ -110,9 +110,9 @@ describe('StationEditPage', () => {
     stationOverride = { callsign: 'KI5ABC-9' };
     const user = userEvent.setup();
     renderEditPage();
-    expect(screen.getByLabelText(/callsign/i)).toHaveValue('KI5ABC-9');
+    expect(screen.getByLabelText(/aprs mycall/i)).toHaveValue('KI5ABC-9');
 
-    await user.clear(screen.getByLabelText(/callsign/i));
+    await user.clear(screen.getByLabelText(/aprs mycall/i));
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     expect(mutateAsyncMock).toHaveBeenCalledWith(expect.objectContaining({ callsign: null }));

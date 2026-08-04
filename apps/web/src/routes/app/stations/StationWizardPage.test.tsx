@@ -56,7 +56,7 @@ describe('StationWizardPage', () => {
     renderWizard();
 
     await user.type(screen.getByLabelText(/station name/i), 'Home base');
-    await user.type(screen.getByLabelText(/callsign/i), 'ki5abc-9');
+    await user.type(screen.getByLabelText(/aprs mycall/i), 'ki5abc-9');
 
     // Skip through the remaining steps to Review (Location, Capability,
     // Antenna & power, Experience, Goals, Participation & privacy).

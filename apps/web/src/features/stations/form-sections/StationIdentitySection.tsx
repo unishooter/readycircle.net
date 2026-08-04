@@ -37,8 +37,8 @@ export function StationIdentitySection({ draft, onChange, autoFocusName }: Stati
         )}
       </Field>
       <Field
-        label="Callsign"
-        hint="Optional -- e.g. KI5ABC-9. Used to match this station's own APRS beacons for live map tracking."
+        label="APRS MYCALL"
+        hint="Optional -- same as MYCALL on your radio, including any SSID (e.g. KI5ABC-9). Used to match this station's APRS beacons for live map tracking."
       >
         {(id) => (
           <TextInput

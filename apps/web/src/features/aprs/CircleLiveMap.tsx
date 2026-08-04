@@ -58,8 +58,8 @@ export function CircleLiveMap({ circleId }: CircleLiveMapProps) {
         <p className="mt-3 text-sm text-ink/50">Loading…</p>
       ) : positions.length === 0 ? (
         <p className="mt-3 text-sm text-ink/60">
-          No live positions yet. Add a callsign to your station to enable live tracking -- see your station&apos;s
-          edit page.
+          No live positions yet. Add your APRS MYCALL to your station to enable live tracking -- see your
+          station&apos;s edit page.
         </p>
       ) : (
         <div className="mt-3 overflow-hidden rounded-lg border border-black/10">

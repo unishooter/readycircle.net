@@ -139,7 +139,7 @@ export function StationWizardPage() {
               </div>
               {draft.callsign ? (
                 <div className="flex justify-between border-b border-black/5 pb-2">
-                  <dt className="text-ink/60">Callsign</dt>
+                  <dt className="text-ink/60">APRS MYCALL</dt>
                   <dd className="font-medium text-ink">{draft.callsign}</dd>
                 </div>
               ) : null}
