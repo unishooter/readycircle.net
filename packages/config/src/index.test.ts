@@ -41,13 +41,13 @@ describe('loadConfig database credentials', () => {
     ).toThrow(ConfigError);
   });
 
-  it('prefers DATABASE_SECRET_ARN and clears databaseUrl when both are set', () => {
+  it('keeps DATABASE_URL alongside DATABASE_SECRET_ARN for endpoint fallback', () => {
     const config = loadConfig({
       ...localBase,
       DATABASE_SECRET_ARN: 'arn:aws:secretsmanager:us-east-1:123:secret:db',
     });
     expect(config.databaseSecretArn).toBe('arn:aws:secretsmanager:us-east-1:123:secret:db');
-    expect(config.databaseUrl).toBeNull();
+    expect(config.databaseUrl).toBe(localBase.DATABASE_URL);
   });
 
   it('requires DATABASE_SECRET_ARN in production', () => {
@@ -60,10 +60,17 @@ describe('loadConfig database credentials', () => {
     ).toThrow(/DATABASE_SECRET_ARN/);
   });
 
-  it('accepts production config with DATABASE_SECRET_ARN and no DATABASE_URL', () => {
-    const config = loadConfig(productionBase);
-    expect(config.databaseSecretArn).toBe(productionBase.DATABASE_SECRET_ARN);
-    expect(config.databaseUrl).toBeNull();
-    expect(config.isProduction).toBe(true);
+  it('accepts production config with DATABASE_SECRET_ARN and optional DATABASE_URL', () => {
+    const withUrl = loadConfig({
+      ...productionBase,
+      DATABASE_URL: 'postgres://admin@db.example:5432/readycircle',
+    });
+    expect(withUrl.databaseSecretArn).toBe(productionBase.DATABASE_SECRET_ARN);
+    expect(withUrl.databaseUrl).toBe('postgres://admin@db.example:5432/readycircle');
+
+    const arnOnly = loadConfig(productionBase);
+    expect(arnOnly.databaseSecretArn).toBe(productionBase.DATABASE_SECRET_ARN);
+    expect(arnOnly.databaseUrl).toBeNull();
+    expect(arnOnly.isProduction).toBe(true);
   });
 });

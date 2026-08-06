@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import {
   createRdsPasswordCache,
+  parsePostgresEndpoint,
   type RdsConnectionConfig,
   type RdsPasswordCache,
 } from '@readycircle/aws';
@@ -63,9 +64,14 @@ export async function createManagedDatabase(options: ManagedDatabaseOptions): Pr
     if (!options.region && !options.passwordCache) {
       throw new Error('createManagedDatabase: region is required when secretArn is set.');
     }
+    const endpointFallback = connectionString ? parsePostgresEndpoint(connectionString) : null;
     const cache =
       options.passwordCache ??
-      createRdsPasswordCache({ secretArn, region: options.region as string });
+      createRdsPasswordCache({
+        secretArn,
+        region: options.region as string,
+        endpointFallback,
+      });
     const initial = await cache.getConnectionConfig();
     return createSecretsManagerDatabase(initial, cache, {
       max: options.max ?? 10,

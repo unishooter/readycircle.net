@@ -24,9 +24,11 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().url().default('http://localhost:5173'),
   API_PORT: z.coerce.number().int().positive().default(3000),
 
-  // Prefer DATABASE_SECRET_ARN in production (RDS-managed Secrets Manager
-  // JSON). DATABASE_URL remains the local/dev path and an emergency
-  // non-production fallback. At least one of the two must be set.
+  // Prefer DATABASE_SECRET_ARN in production (Secrets Manager JSON with at
+  // least username/password). DATABASE_URL is the local/dev path, and in
+  // production may still supply host/port/database when the secret is
+  // credentials-only (URL password is ignored whenever the ARN is set).
+  // At least one of the two must be set.
   DATABASE_URL: z.string().default(''),
   DATABASE_SECRET_ARN: z.string().default(''),
 
@@ -99,13 +101,14 @@ export interface AppConfig {
   appBaseUrl: string;
   apiPort: number;
   /**
-   * Static Postgres URL for local/dev (and non-production fallback).
-   * Null when production (or any env) is using Secrets Manager instead.
+   * Postgres URL for local/dev, or production endpoint fallback (host/port/
+   * database) when `databaseSecretArn` points at a credentials-only secret.
+   * When the ARN is set, the URL password is never used for auth.
    */
   databaseUrl: string | null;
   /**
-   * ARN/name of the RDS-managed Secrets Manager secret. When set, the API
-   * and worker resolve host/user/password from SM at connection time.
+   * ARN/name of the Secrets Manager secret. When set, username/password are
+   * resolved from SM at connection time (rotation-safe).
    */
   databaseSecretArn: string | null;
   sessionSecret: string;
@@ -226,9 +229,9 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     isTest: env.APP_ENV === 'test',
     appBaseUrl: env.APP_BASE_URL,
     apiPort: env.API_PORT,
-    // When an ARN is set it wins -- do not keep using a possibly-stale URL
-    // password alongside live SM credentials.
-    databaseUrl: databaseSecretArn ? null : databaseUrl,
+    // Keep DATABASE_URL even when ARN is set: credentials-only secrets still
+    // need host/port/database from the URL. Auth password always comes from SM.
+    databaseUrl,
     databaseSecretArn,
     sessionSecret: env.SESSION_SECRET,
     logLevel: env.LOG_LEVEL,

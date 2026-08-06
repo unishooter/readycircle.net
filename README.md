@@ -148,8 +148,8 @@ notable ones:
 | Variable | Purpose |
 | --- | --- |
 | `APP_ENV` | `development` \| `test` \| `staging` \| `production`. Gates dev auth and enforces production config checks. |
-| `DATABASE_URL` | PostgreSQL connection string for local/dev. Ignored when `DATABASE_SECRET_ARN` is set. |
-| `DATABASE_SECRET_ARN` | RDS-managed Secrets Manager secret ARN. Required when `APP_ENV=production`; API/worker resolve host/user/password at connection time (rotation-safe). |
+| `DATABASE_URL` | PostgreSQL connection string for local/dev. In production, optional endpoint fallback (host/port/database) when the SM secret is credentials-only; URL password is ignored if `DATABASE_SECRET_ARN` is set. |
+| `DATABASE_SECRET_ARN` | Secrets Manager secret ARN (username/password, optionally full RDS shape). Required when `APP_ENV=production`; password resolved at connection time (rotation-safe). |
 | `SESSION_SECRET` | Signs session cookies. Must be a real random value in production (the API refuses to start otherwise). |
 | `DEV_AUTH_ENABLED` | Enables passwordless development sign-in. The API refuses to start with this `true` when `APP_ENV=production`, unless `DEV_AUTH_UNSAFE_OVERRIDE=true` is also set. |
 | `AWS_REGION`, `AWS_S3_DOCUMENT_BUCKET`, `AWS_SQS_PLAN_QUEUE_URL`, `AWS_SQS_DOCUMENT_QUEUE_URL` | Required in production; the worker idles (with a warning) if a queue URL is unset, which is expected in local development. When the queue URLs are blank, the API runs plan/document generation in-process instead of dispatching to the worker. |

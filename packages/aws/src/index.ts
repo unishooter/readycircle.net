@@ -9,8 +9,17 @@ export type { SecretsManagerClientOptions } from './secrets-manager.js';
 
 export {
   parseRdsSecretString,
+  parsePostgresEndpoint,
+  resolveRdsConnectionConfig,
+  fetchRdsSecretFields,
   fetchRdsConnectionConfig,
   createRdsPasswordCache,
   RdsSecretError,
 } from './rds-secret.js';
-export type { RdsConnectionConfig, RdsPasswordCache, RdsPasswordCacheOptions } from './rds-secret.js';
+export type {
+  RdsConnectionConfig,
+  RdsSecretFields,
+  PostgresEndpoint,
+  RdsPasswordCache,
+  RdsPasswordCacheOptions,
+} from './rds-secret.js';

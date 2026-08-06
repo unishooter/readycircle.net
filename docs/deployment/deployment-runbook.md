@@ -136,9 +136,12 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
    (root-owned, mode `0600`) with the environment variables from
    `.env.example`, sourced from Secrets Manager / SSM Parameter Store.
    **Both files should contain the same values.** Include
-   `DATABASE_SECRET_ARN` (the RDS-managed secret ARN) and `AWS_REGION`;
-   do **not** put a password-bearing `DATABASE_URL` in production -- the
-   app fetches username/password from Secrets Manager at connection time.
+   `DATABASE_SECRET_ARN` (Secrets Manager secret ARN) and `AWS_REGION`.
+   Username/password always come from the secret. If that secret is
+   credentials-only (`username` + `password` only), also keep
+   `DATABASE_URL` with the RDS host/port/database (URL password is
+   ignored). A full RDS-managed secret with host/port/dbname does not
+   need `DATABASE_URL`.
    Confirm the instance role can read that secret
    (`aws secretsmanager get-secret-value --secret-id "$DATABASE_SECRET_ARN"`).
    `apps/worker` calls the same shared `loadConfig()` as `apps/api`, so the
@@ -250,11 +253,12 @@ Cut over production from a static `DATABASE_URL` password to the
 RDS-managed Secrets Manager secret (required once this build is live --
 `APP_ENV=production` refuses to start without `DATABASE_SECRET_ARN`):
 
-1. Put `DATABASE_SECRET_ARN=<rds-managed-secret-arn>` in **both**
+1. Put `DATABASE_SECRET_ARN=<secret-arn>` in **both**
    `/etc/readycircle/api.env` and `/etc/readycircle/worker.env`. Keep
    `AWS_REGION` set to the region that holds the secret.
-2. Remove or blank the password-bearing `DATABASE_URL` line in both files
-   (when the ARN is set the app ignores `DATABASE_URL` anyway).
+2. If the secret is credentials-only (`username`/`password`), keep
+   `DATABASE_URL` for host/port/database (you can blank the URL password).
+   If the secret includes host/port/dbname, you may remove `DATABASE_URL`.
 3. Confirm the EC2 instance role can read the secret:
    ```bash
    aws secretsmanager get-secret-value --secret-id "$DATABASE_SECRET_ARN" --query ARN --output text
