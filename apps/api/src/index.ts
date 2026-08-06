@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as loadDotenv } from 'dotenv';
 import { loadConfig, ConfigError } from '@readycircle/config';
-import { createDatabase } from '@readycircle/database';
+import { createManagedDatabase, pingDatabase } from '@readycircle/database';
 import { buildServer } from './server.js';
 
 // Populates `process.env` from the repo-root `.env` file in local
@@ -25,7 +25,19 @@ async function main() {
     throw error;
   }
 
-  const { db, close } = createDatabase(config.databaseUrl);
+  let dbHandle;
+  try {
+    dbHandle = await createManagedDatabase({
+      connectionString: config.databaseUrl,
+      secretArn: config.databaseSecretArn,
+      region: config.aws.region,
+    });
+    await pingDatabase(dbHandle.db);
+  } catch (error) {
+    console.error('Failed to connect to database, refusing to start:', error);
+    process.exit(1);
+  }
+  const { db, close } = dbHandle;
   const app = buildServer({ config, db });
   const logger = app.log;
 

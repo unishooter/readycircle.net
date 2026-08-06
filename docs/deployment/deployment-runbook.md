@@ -17,26 +17,32 @@ meant to be applied to instances that already exist.
   `/api/` and `/health/` to the local Fastify API on port 3000) and two
   **systemd** services (`readycircle-api`, `readycircle-worker`).
 - **RDS PostgreSQL** (with the PostGIS extension enabled) is the primary
-  datastore. `DATABASE_URL` points at it.
+  datastore. In production the API, worker, and `deploy.sh` migrations
+  resolve credentials from the **RDS-managed Secrets Manager secret** via
+  `DATABASE_SECRET_ARN` (in-process at connection time, not baked into a
+  password URL). Local/dev still uses `DATABASE_URL`.
 - **S3** stores generated documents (plans, PDFs). **SQS** carries
   plan-generation and document-generation jobs from the API to the worker.
-- **Secrets Manager** / **SSM Parameter Store** holds `SESSION_SECRET`,
-  `DATABASE_URL`, the Cognito credentials
-  (`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET`,
-  `COGNITO_DOMAIN`, `COGNITO_REDIRECT_URI` -- see
+- **Secrets Manager** / **SSM Parameter Store** holds the RDS DB secret
+  (referenced by `DATABASE_SECRET_ARN`), plus `SESSION_SECRET`, the Cognito
+  credentials (`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`,
+  `COGNITO_CLIENT_SECRET`, `COGNITO_DOMAIN`, `COGNITO_REDIRECT_URI` -- see
   [cognito-google-setup.md](./cognito-google-setup.md) for how these are
   obtained), and `OPENAI_API_KEY` (AI plan generation); `packages/config`
-  refuses to start the API in production if any are missing. These are
-  rendered into `/etc/readycircle/api.env` and
+  refuses to start the API in production if any are missing. Non-DB secrets
+  are still rendered into `/etc/readycircle/api.env` and
   `/etc/readycircle/worker.env` by whatever provisioning/config-management
   tooling manages the ASG launch template -- that step is outside this
-  repo's scope.
+  repo's scope. The DB password itself should **not** live in those files.
 - **CloudWatch** collects logs (via the CloudWatch agent tailing journald
   output, since both services log structured JSON to stdout/journald) and
   metrics/alarms.
 - **IAM** instance roles grant the EC2 instances least-privilege access to
   the specific S3 bucket, SQS queues, and Secrets Manager secrets they need
-  (see `packages/aws` for the exact AWS SDK calls made).
+  (see `packages/aws` for the exact AWS SDK calls made). For the RDS
+  secret this must include `secretsmanager:GetSecretValue` on that secret
+  ARN (and `kms:Decrypt` if the secret is encrypted with a customer-managed
+  KMS key).
 
 ## No SSH -- use Systems Manager Session Manager
 
@@ -129,16 +135,21 @@ Run steps 4 and 5's `cp` commands from whichever directory you used above
 3. Populate `/etc/readycircle/api.env` and `/etc/readycircle/worker.env`
    (root-owned, mode `0600`) with the environment variables from
    `.env.example`, sourced from Secrets Manager / SSM Parameter Store.
-   **Both files should contain the same values.** `apps/worker` calls the
-   same shared `loadConfig()` as `apps/api`, so the same
-   production-required checklist (`SESSION_SECRET`, the three
-   `AWS_S3_*`/`AWS_SQS_*` variables, all five `COGNITO_*` variables, and
-   `OPENAI_API_KEY`) applies to both -- the worker refuses to start
-   without them even though it doesn't functionally use most of them (no
-   sessions, no sign-in). `NODE_ENV`/`APP_ENV` must both be `production`;
-   `APP_BASE_URL` and `API_PORT` are unused by the worker but harmless to
-   include for consistency. Without a `sudoedit`/editor session handy,
-   write a file non-interactively with:
+   **Both files should contain the same values.** Include
+   `DATABASE_SECRET_ARN` (the RDS-managed secret ARN) and `AWS_REGION`;
+   do **not** put a password-bearing `DATABASE_URL` in production -- the
+   app fetches username/password from Secrets Manager at connection time.
+   Confirm the instance role can read that secret
+   (`aws secretsmanager get-secret-value --secret-id "$DATABASE_SECRET_ARN"`).
+   `apps/worker` calls the same shared `loadConfig()` as `apps/api`, so the
+   same production-required checklist (`DATABASE_SECRET_ARN`,
+   `SESSION_SECRET`, the three `AWS_S3_*`/`AWS_SQS_*` variables, all five
+   `COGNITO_*` variables, and `OPENAI_API_KEY`) applies to both -- the
+   worker refuses to start without them even though it doesn't functionally
+   use most of them (no sessions, no sign-in). `NODE_ENV`/`APP_ENV` must
+   both be `production`; `APP_BASE_URL` and `API_PORT` are unused by the
+   worker but harmless to include for consistency. Without a
+   `sudoedit`/editor session handy, write a file non-interactively with:
    ```bash
    sudo tee /etc/readycircle/api.env > /dev/null << 'EOF'
    NODE_ENV=production
@@ -232,6 +243,36 @@ helper script for some other manual process.
    per instance (or drive it from orchestration tooling) -- this script is
    intentionally a single idempotent unit of work for one instance, not a
    fleet-wide orchestrator.
+
+### Release-specific step: RDS Secrets Manager DB credentials
+
+Cut over production from a static `DATABASE_URL` password to the
+RDS-managed Secrets Manager secret (required once this build is live --
+`APP_ENV=production` refuses to start without `DATABASE_SECRET_ARN`):
+
+1. Put `DATABASE_SECRET_ARN=<rds-managed-secret-arn>` in **both**
+   `/etc/readycircle/api.env` and `/etc/readycircle/worker.env`. Keep
+   `AWS_REGION` set to the region that holds the secret.
+2. Remove or blank the password-bearing `DATABASE_URL` line in both files
+   (when the ARN is set the app ignores `DATABASE_URL` anyway).
+3. Confirm the EC2 instance role can read the secret:
+   ```bash
+   aws secretsmanager get-secret-value --secret-id "$DATABASE_SECRET_ARN" --query ARN --output text
+   ```
+   If this fails with `AccessDenied`, attach
+   `secretsmanager:GetSecretValue` on that ARN (and `kms:Decrypt` if the
+   secret uses a CMK) to the instance role before restarting services.
+4. Restart API/worker (or run `deploy.sh`, which also migrates using the
+   same ARN from `api.env`):
+   ```bash
+   sudo systemctl restart readycircle-api readycircle-worker
+   curl -sS http://127.0.0.1:3000/health/ready
+   curl -sS http://127.0.0.1:3000/api/v1/session
+   ```
+5. Optionally enable or confirm RDS managed password rotation for that
+   secret -- the app caches the password briefly and invalidates + retries
+   once on `password authentication failed`, so rotation should not require
+   a process restart.
 
 ### Release-specific step: AI plan generation (first deploy that includes it)
 

@@ -32,21 +32,22 @@ Either way, env files (`api.env`/`worker.env`) should be rendered from
 Secrets Manager at boot rather than expected to already exist on the
 AMI -- which ties into item 2.
 
-### 2. Env vars are hand-typed flat files, not Secrets Manager
-Deliberately deferred to get the first deployment unblocked (see the
-"got .env for now, move to secrets mgr later" decision). `SESSION_SECRET`,
-`DATABASE_URL`, and the `COGNITO_*` values currently live in
-`/etc/readycircle/api.env` / `worker.env` as plaintext, populated by hand.
+### 2. Non-DB env vars are still hand-typed flat files, not Secrets Manager
+**Partial progress (DB only):** production API/worker/migrations now resolve
+Postgres credentials in-process from the RDS-managed Secrets Manager secret
+via `DATABASE_SECRET_ARN` (see the cutover steps in
+[deployment-runbook.md](./deployment-runbook.md)). The DB password no longer
+needs to live in `api.env` / `worker.env`.
 
-**Fix**: a deploy-time bootstrap script that calls
-`aws secretsmanager get-secret-value` for each secret and renders the
-result into the env files, replacing the manual `sudoedit`/`sudo tee`
-step. No application code changes needed for this (an
-`@readycircle/aws` helper for this already exists but is unused --
+Still deferred: `SESSION_SECRET` and the `COGNITO_*` values remain plaintext
+in those env files, populated by hand.
+
+**Fix (remaining):** a deploy-time / boot-time bootstrap script that calls
+`aws secretsmanager get-secret-value` for the non-DB secrets and renders
+them into the env files, replacing the manual `sudoedit`/`sudo tee` step.
 `getSecretString` in
 [`packages/aws/src/secrets-manager.ts`](../../packages/aws/src/secrets-manager.ts)
--- though a bootstrap script is simpler than wiring Secrets Manager
-calls into app startup itself).
+is available if that bootstrap wants to share code with the app.
 
 ## Medium priority
 

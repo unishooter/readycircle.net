@@ -126,7 +126,13 @@ log "Running database migrations"
       export "$env_line"
     done < "$API_ENV_FILE"
   else
-    log "WARNING: $API_ENV_FILE not found; relying on DATABASE_URL already being in this shell's environment"
+    log "WARNING: $API_ENV_FILE not found; relying on DATABASE_SECRET_ARN or DATABASE_URL already being in this shell's environment"
+  fi
+  # Migrations resolve Postgres via DATABASE_SECRET_ARN (preferred in
+  # production; uses the instance IAM role + AWS_REGION) or DATABASE_URL.
+  # Export both from api.env above so the migrate script sees them.
+  if [[ -z "${DATABASE_SECRET_ARN:-}" && -z "${DATABASE_URL:-}" ]]; then
+    fail "migration step needs DATABASE_SECRET_ARN or DATABASE_URL (from $API_ENV_FILE)"
   fi
   pnpm --filter @readycircle/database run migrate
 ) || fail "migration step failed; aborting before touching the running release"

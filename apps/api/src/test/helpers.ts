@@ -32,6 +32,9 @@ export async function createTestContext(
     DEV_AUTH_ENABLED: 'true',
     ...envOverrides,
   });
+  if (!config.databaseUrl) {
+    throw new Error('createTestContext requires DATABASE_URL (Secrets Manager mode is not used in tests).');
+  }
   const { db, close } = createDatabase(config.databaseUrl);
   const app = buildServer({ config, db, ...serverOverrides });
   await app.ready();

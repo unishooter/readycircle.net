@@ -1,26 +1,35 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from 'dotenv';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import postgres from 'postgres';
 import { backfillCircleIdentifiers, finalizeCircleIdentifierNotNull } from './backfill-circle-identifiers.js';
-import * as schema from './schema/index.js';
+import { createManagedDatabase } from './client.js';
 import { circleRoles } from './schema/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 config({ path: path.resolve(__dirname, '../../../.env') });
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is required to run migrations.');
+  const secretArn = process.env.DATABASE_SECRET_ARN?.trim() || null;
+  const connectionString = process.env.DATABASE_URL?.trim() || null;
+  const region = process.env.AWS_REGION?.trim() || 'us-east-1';
+
+  if (!secretArn && !connectionString) {
+    throw new Error('DATABASE_SECRET_ARN or DATABASE_URL is required to run migrations.');
   }
 
-  const client = postgres(connectionString, { max: 1 });
-  const db = drizzle(client, { schema });
+  const { db, client, close } = await createManagedDatabase({
+    secretArn,
+    connectionString,
+    region,
+    max: 1,
+  });
 
-  console.log('Ensuring PostGIS extension is available...');
+  console.log(
+    secretArn
+      ? `Ensuring PostGIS extension is available (Secrets Manager: ${secretArn})...`
+      : 'Ensuring PostGIS extension is available...',
+  );
   await client.unsafe('CREATE EXTENSION IF NOT EXISTS postgis');
 
   console.log('Running migrations...');
@@ -40,7 +49,7 @@ async function main() {
   console.log(`Assigned Circle Identifiers to ${updated} circle(s).`);
   await finalizeCircleIdentifierNotNull(db);
 
-  await client.end();
+  await close();
   console.log('Migrations complete.');
 }
 

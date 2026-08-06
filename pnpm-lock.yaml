@@ -342,6 +342,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@readycircle/aws':
+        specifier: workspace:*
+        version: link:../aws
       '@readycircle/domain':
         specifier: workspace:*
         version: link:../domain

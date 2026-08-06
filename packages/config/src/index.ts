@@ -24,7 +24,11 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().url().default('http://localhost:5173'),
   API_PORT: z.coerce.number().int().positive().default(3000),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Prefer DATABASE_SECRET_ARN in production (RDS-managed Secrets Manager
+  // JSON). DATABASE_URL remains the local/dev path and an emergency
+  // non-production fallback. At least one of the two must be set.
+  DATABASE_URL: z.string().default(''),
+  DATABASE_SECRET_ARN: z.string().default(''),
 
   SESSION_SECRET: z.string().min(16, 'SESSION_SECRET must be at least 16 characters long'),
 
@@ -94,7 +98,16 @@ export interface AppConfig {
   isTest: boolean;
   appBaseUrl: string;
   apiPort: number;
-  databaseUrl: string;
+  /**
+   * Static Postgres URL for local/dev (and non-production fallback).
+   * Null when production (or any env) is using Secrets Manager instead.
+   */
+  databaseUrl: string | null;
+  /**
+   * ARN/name of the RDS-managed Secrets Manager secret. When set, the API
+   * and worker resolve host/user/password from SM at connection time.
+   */
+  databaseSecretArn: string | null;
   sessionSecret: string;
   logLevel: RawEnv['LOG_LEVEL'];
   aws: {
@@ -162,6 +175,14 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const env = parsed.data;
   const isProduction = env.APP_ENV === 'production';
+  const databaseSecretArn = env.DATABASE_SECRET_ARN.trim() || null;
+  const databaseUrl = env.DATABASE_URL.trim() || null;
+
+  if (!databaseSecretArn && !databaseUrl) {
+    throw new ConfigError(
+      'Database configuration missing: set DATABASE_SECRET_ARN (production) or DATABASE_URL (local/dev).',
+    );
+  }
 
   if (isProduction && env.DEV_AUTH_ENABLED && !env.DEV_AUTH_UNSAFE_OVERRIDE) {
     throw new ConfigError(
@@ -173,6 +194,9 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
 
   if (isProduction) {
     const missing: string[] = [];
+    if (!databaseSecretArn) {
+      missing.push('DATABASE_SECRET_ARN (RDS-managed Secrets Manager secret; required in production)');
+    }
     if (env.SESSION_SECRET.startsWith('dev-only')) {
       missing.push('SESSION_SECRET (still set to the development placeholder value)');
     }
@@ -202,7 +226,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     isTest: env.APP_ENV === 'test',
     appBaseUrl: env.APP_BASE_URL,
     apiPort: env.API_PORT,
-    databaseUrl: env.DATABASE_URL,
+    // When an ARN is set it wins -- do not keep using a possibly-stale URL
+    // password alongside live SM credentials.
+    databaseUrl: databaseSecretArn ? null : databaseUrl,
+    databaseSecretArn,
     sessionSecret: env.SESSION_SECRET,
     logLevel: env.LOG_LEVEL,
     aws: {

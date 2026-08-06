@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as loadDotenv } from 'dotenv';
 import { ConfigError, loadConfig } from '@readycircle/config';
-import { createDatabase, pingDatabase } from '@readycircle/database';
+import { createManagedDatabase, pingDatabase, type Database } from '@readycircle/database';
 import { createLogger } from '@readycircle/observability';
 import { createSqsClient } from '@readycircle/aws';
 import { createAdvisoryProvider, createDocumentStore } from '@readycircle/plan-engine';
@@ -31,10 +31,23 @@ async function main() {
 
   const logger = createLogger({ level: config.logLevel, appEnv: config.appEnv, module: 'worker' });
 
-  const { db, close: closeDatabase } = createDatabase(config.databaseUrl);
+  let db: Database;
+  let closeDatabase: () => Promise<void>;
   try {
+    const handle = await createManagedDatabase({
+      connectionString: config.databaseUrl,
+      secretArn: config.databaseSecretArn,
+      region: config.aws.region,
+    });
+    db = handle.db;
+    closeDatabase = handle.close;
     await pingDatabase(db);
-    logger.info('database connection verified');
+    logger.info(
+      {
+        databaseMode: config.databaseSecretArn ? 'secrets-manager' : 'connection-string',
+      },
+      'database connection verified',
+    );
   } catch (error) {
     logger.fatal({ err: error }, 'failed to connect to database');
     process.exit(1);
