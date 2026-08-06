@@ -13,5 +13,7 @@ declare module 'fastify' {
     auditService: AuditService;
     planJobDispatcher: JobDispatcher;
     planDocumentStore: DocumentStore;
+    /** Clears the SM password cache after a Postgres auth failure (SM mode). */
+    invalidateDbCredentials?: () => void;
   }
 }

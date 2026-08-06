@@ -15,6 +15,12 @@ export interface DatabaseHandle {
   db: Database;
   client: postgres.Sql;
   close: () => Promise<void>;
+  /**
+   * Clears the Secrets Manager password cache (SM mode only). Call after a
+   * password-authentication failure so the next connection fetches a fresh
+   * secret. No-op / undefined in static DATABASE_URL mode.
+   */
+  invalidateCredentials?: () => void;
 }
 
 /** Postgres SQLSTATE for invalid_password / password authentication failed. */
@@ -52,9 +58,12 @@ export interface ManagedDatabaseOptions {
 /**
  * Creates a database handle from either a static `DATABASE_URL` or an
  * RDS-managed Secrets Manager secret. SM mode uses an async password
- * callback, TLS (`ssl: 'require'`), and a one-shot retry after password
- * authentication failures so mid-lifetime RDS rotation recovers without a
- * process restart.
+ * callback, TLS (`ssl: 'require'`), and a short-lived password cache with
+ * `invalidateCredentials` so callers can recover after RDS rotation.
+ *
+ * Note: we intentionally do not Proxy-wrap the postgres.js client. Drizzle
+ * relies on chainable helpers like `client.unsafe(...).values()`; wrapping
+ * thenables strips those methods and breaks SELECTs.
  */
 export async function createManagedDatabase(options: ManagedDatabaseOptions): Promise<DatabaseHandle> {
   const secretArn = options.secretArn?.trim() || null;
@@ -95,7 +104,7 @@ function createSecretsManagerDatabase(
   cache: RdsPasswordCache,
   pool: { max: number; maxLifetimeSeconds: number },
 ): DatabaseHandle {
-  const rawClient = postgres({
+  const client = postgres({
     host: initial.host,
     port: initial.port,
     database: initial.database,
@@ -107,58 +116,14 @@ function createSecretsManagerDatabase(
     max_lifetime: pool.maxLifetimeSeconds,
     ssl: 'require',
   });
-
-  const client = wrapSqlWithPasswordAuthRetry(rawClient, () => {
-    cache.invalidate();
-  });
   const db = drizzle(client, { schema });
 
   return {
     db,
     client,
-    close: () => rawClient.end({ timeout: 5 }),
+    close: () => client.end({ timeout: 5 }),
+    invalidateCredentials: () => cache.invalidate(),
   };
-}
-
-/**
- * Wraps the postgres.js tagged-template / unsafe surface so a single password
- * authentication failure invalidates the credential cache and retries once
- * (the next connection opens with a fresh password() fetch).
- */
-function wrapSqlWithPasswordAuthRetry(
-  client: postgres.Sql,
-  onAuthFailure: () => void,
-): postgres.Sql {
-  const withRetry = (run: () => unknown): unknown => {
-    const result = run();
-    if (!isThenable(result)) return result;
-    return (result as Promise<unknown>).catch(async (error: unknown) => {
-      if (!isPasswordAuthFailure(error)) throw error;
-      onAuthFailure();
-      return run();
-    });
-  };
-
-  return new Proxy(client, {
-    apply(target, thisArg, argArray) {
-      return withRetry(() => Reflect.apply(target, thisArg, argArray));
-    },
-    get(target, property, receiver) {
-      const value = Reflect.get(target, property, receiver);
-      if (property === 'unsafe' && typeof value === 'function') {
-        return (...args: unknown[]) =>
-          withRetry(() => (value as (...a: unknown[]) => unknown).apply(target, args));
-      }
-      if (typeof value === 'function') {
-        return value.bind(target);
-      }
-      return value;
-    },
-  }) as postgres.Sql;
-}
-
-function isThenable(value: unknown): value is PromiseLike<unknown> {
-  return Boolean(value) && typeof (value as { then?: unknown }).then === 'function';
 }
 
 /**

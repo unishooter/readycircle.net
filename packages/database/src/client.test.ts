@@ -43,10 +43,11 @@ describe('createManagedDatabase options', () => {
       username: 'admin',
       password: 'unused',
     }));
+    const invalidate = vi.fn();
     const cache = {
       getConnectionConfig,
       getPassword: vi.fn(async () => 'unused'),
-      invalidate: vi.fn(),
+      invalidate,
     };
 
     // Construction reaches postgres.js with ssl/host options; connecting is
@@ -58,6 +59,10 @@ describe('createManagedDatabase options', () => {
     });
 
     expect(getConnectionConfig).toHaveBeenCalledTimes(1);
+    // Drizzle needs the raw postgres.js client (chainable `.unsafe().values()`).
+    expect(typeof handle.client.unsafe).toBe('function');
+    handle.invalidateCredentials?.();
+    expect(invalidate).toHaveBeenCalledTimes(1);
     await handle.close();
   });
 });

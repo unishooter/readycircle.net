@@ -37,13 +37,21 @@ import { createDocumentStore, type DocumentStore } from '@readycircle/plan-engin
 export interface BuildServerOptions {
   config: AppConfig;
   db: Database;
+  /** Clears the Secrets Manager password cache after a DB auth failure. */
+  invalidateDbCredentials?: () => void;
   /** Test seam: replaces the SQS / in-process plan job dispatcher. */
   planJobDispatcher?: JobDispatcher;
   /** Test seam: replaces the S3 / local-disk plan document store. */
   planDocumentStore?: DocumentStore;
 }
 
-export function buildServer({ config, db, planJobDispatcher, planDocumentStore }: BuildServerOptions): FastifyInstance {
+export function buildServer({
+  config,
+  db,
+  invalidateDbCredentials,
+  planJobDispatcher,
+  planDocumentStore,
+}: BuildServerOptions): FastifyInstance {
   const app = Fastify({
     logger: buildPinoOptions({ level: config.logLevel, appEnv: config.appEnv, module: 'api' }),
     disableRequestLogging: false,
@@ -66,6 +74,9 @@ export function buildServer({ config, db, planJobDispatcher, planDocumentStore }
 
   app.decorate('db', db);
   app.decorate('config', config);
+  if (invalidateDbCredentials) {
+    app.decorate('invalidateDbCredentials', invalidateDbCredentials);
+  }
   app.decorate('sessionManager', new SessionManager(db, config.sessionSecret));
   app.decorate('auditService', new AuditService(db));
   app.decorate('planJobDispatcher', planJobDispatcher ?? createJobDispatcher(config, db, app.log));

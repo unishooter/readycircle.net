@@ -37,8 +37,12 @@ async function main() {
     console.error('Failed to connect to database, refusing to start:', error);
     process.exit(1);
   }
-  const { db, close } = dbHandle;
-  const app = buildServer({ config, db });
+  const { db, close, invalidateCredentials } = dbHandle;
+  const app = buildServer({
+    config,
+    db,
+    invalidateDbCredentials: invalidateCredentials,
+  });
   const logger = app.log;
 
   process.on('uncaughtException', (error) => {

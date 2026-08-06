@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
+import { isPasswordAuthFailure } from '@readycircle/database';
 import { ApiError } from '../lib/errors.js';
 
 /**
@@ -39,7 +40,12 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return;
     }
 
-    request.log.error({ err: error }, 'unhandled error');
+    if (isPasswordAuthFailure(error)) {
+      request.server.invalidateDbCredentials?.();
+      request.log.error({ err: error }, 'database password authentication failed; invalidated credentials cache');
+    } else {
+      request.log.error({ err: error }, 'unhandled error');
+    }
     reply.status(500).send({
       error: { code: 'internal_error', message: 'An unexpected error occurred.', requestId },
     });
