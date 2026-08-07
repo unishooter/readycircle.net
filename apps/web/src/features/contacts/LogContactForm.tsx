@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { CONNECTIVITY_PATH_TYPE_LABELS, type ContactMode, type LogContactInput } from '@readycircle/contracts';
 import { Button, Field, Select, TextArea, TextInput } from '@readycircle/ui';
 import { useCircleMembers } from '../circles/api.js';
+import { useCircleRepeaters } from '../repeaters/api.js';
 import { useSession } from '../session/api.js';
 import { useLogContact } from './api.js';
 
@@ -29,15 +30,18 @@ function nowLocalInputValue(): string {
 export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormProps) {
   const { data: session } = useSession();
   const { data: membersData } = useCircleMembers(circleId);
+  const { data: repeatersData } = useCircleRepeaters(circleId);
   const logContact = useLogContact(circleId);
 
   const members = membersData?.items ?? [];
   const myStations = members.filter((member) => member.userId === session?.user?.id);
+  const repeaters = repeatersData?.items ?? [];
 
   const [stationId, setStationId] = useState('');
   const [counterpartyStationId, setCounterpartyStationId] = useState('');
   const [occurredAt, setOccurredAt] = useState(nowLocalInputValue());
   const [mode, setMode] = useState<ContactMode>('simplex');
+  const [repeaterId, setRepeaterId] = useState('');
   const [channel, setChannel] = useState('');
   const [signalRating, setSignalRating] = useState('');
   const [notes, setNotes] = useState('');
@@ -53,6 +57,7 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
       counterpartyStationId,
       occurredAt: new Date(occurredAt).toISOString(),
       mode,
+      ...(mode === 'repeater' && repeaterId ? { repeaterId } : {}),
       ...(channel.trim() ? { channel: channel.trim() } : {}),
       ...(signalRating ? { signalRating: Number(signalRating) } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
@@ -62,6 +67,7 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
     setCounterpartyStationId('');
     setOccurredAt(nowLocalInputValue());
     setMode('simplex');
+    setRepeaterId('');
     setChannel('');
     setSignalRating('');
     setNotes('');
@@ -128,7 +134,15 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
         </Field>
         <Field label="Mode" required>
           {(id) => (
-            <Select id={id} value={mode} onChange={(event) => setMode(event.target.value as ContactMode)}>
+            <Select
+              id={id}
+              value={mode}
+              onChange={(event) => {
+                const next = event.target.value as ContactMode;
+                setMode(next);
+                if (next !== 'repeater') setRepeaterId('');
+              }}
+            >
               {MODES.map((value) => (
                 <option key={value} value={value}>
                   {CONNECTIVITY_PATH_TYPE_LABELS[value]}
@@ -137,7 +151,21 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
             </Select>
           )}
         </Field>
-        <Field label="Channel" hint="Optional, e.g. a GMRS channel or repeater name">
+        {mode === 'repeater' ? (
+          <Field label="Repeater" hint="Optional — which directory machine you used">
+            {(id) => (
+              <Select id={id} value={repeaterId} onChange={(event) => setRepeaterId(event.target.value)}>
+                <option value="">Not specified</option>
+                {repeaters.map((repeater) => (
+                  <option key={repeater.id} value={repeater.id}>
+                    {repeater.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        ) : null}
+        <Field label="Channel" hint="Optional, e.g. a GMRS channel or dial setting">
           {(id) => (
             <TextInput
               id={id}

@@ -13,18 +13,30 @@ import { connectivityPathTypeSchema } from './plan.js';
 export const contactModeSchema = connectivityPathTypeSchema;
 export type ContactMode = z.infer<typeof contactModeSchema>;
 
-export const logContactSchema = z.object({
-  stationId: uuidSchema,
-  counterpartyStationId: uuidSchema,
-  /** ISO instant; must not be in the future. */
-  occurredAt: z.string().datetime(),
-  mode: contactModeSchema,
-  channel: z.string().max(200).optional(),
-  /** Simple 1-5 signal-quality rating. */
-  signalRating: z.number().int().min(1).max(5).optional(),
-  notes: z.string().max(2000).optional(),
-  netSessionId: uuidSchema.optional(),
-});
+export const logContactSchema = z
+  .object({
+    stationId: uuidSchema,
+    counterpartyStationId: uuidSchema,
+    /** ISO instant; must not be in the future. */
+    occurredAt: z.string().datetime(),
+    mode: contactModeSchema,
+    /** Optional Circle directory repeater when mode is 'repeater'. */
+    repeaterId: uuidSchema.optional(),
+    channel: z.string().max(200).optional(),
+    /** Simple 1-5 signal-quality rating. */
+    signalRating: z.number().int().min(1).max(5).optional(),
+    notes: z.string().max(2000).optional(),
+    netSessionId: uuidSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.repeaterId && value.mode !== 'repeater') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['repeaterId'],
+        message: 'repeaterId is only allowed when mode is "repeater".',
+      });
+    }
+  });
 export type LogContactInput = z.infer<typeof logContactSchema>;
 
 export const contactResponseSchema = z.object({
@@ -37,6 +49,8 @@ export const contactResponseSchema = z.object({
   counterpartyStationName: z.string(),
   occurredAt: z.string(),
   mode: contactModeSchema,
+  repeaterId: uuidSchema.nullable(),
+  repeaterName: z.string().nullable(),
   channel: z.string().nullable(),
   signalRating: z.number().int().nullable(),
   notes: z.string().nullable(),

@@ -73,6 +73,9 @@ export interface RfConfirmedContact {
   mode: ConnectivityPathType;
   /** ISO instant; when multiple contacts exist for a pair, the most recent wins. */
   occurredAt: string;
+  /** Directory repeater named on a mode=repeater contact, when known. */
+  repeaterId?: string | null;
+  repeaterName?: string | null;
 }
 
 export interface RfAnalysisInput {
@@ -458,10 +461,17 @@ export function analyzeRfReachability(input: RfAnalysisInput): RfAnalysisResult 
 
       const confirmedContact = confirmedByPair.get(pairKey(a.id, b.id));
       if (confirmedContact) {
+        const namedRepeater =
+          confirmedContact.mode === 'repeater'
+            ? (confirmedContact.repeaterName ??
+              (best?.pathType === 'repeater' ? best.viaRepeaterName : null))
+            : null;
         best = {
           pathType: confirmedContact.mode,
           verdict: 'likely',
-          viaRepeaterName: best?.pathType === confirmedContact.mode ? best.viaRepeaterName : null,
+          viaRepeaterName:
+            namedRepeater ??
+            (best?.pathType === confirmedContact.mode ? best.viaRepeaterName : null),
           detail: `Confirmed by a logged contact on ${confirmedContact.occurredAt.slice(0, 10)}`,
         };
       }

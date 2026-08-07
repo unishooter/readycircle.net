@@ -273,6 +273,62 @@ describe('contacts API', () => {
     );
   });
 
+  it('attaches an optional Circle repeater when mode is repeater', async () => {
+    const createRepeater = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/circles/${circleId}/repeaters`,
+      cookies: { rc_session: coordinator.sessionToken },
+      payload: {
+        service: 'gmrs',
+        name: 'Contact Test Repeater',
+        outputFrequencyMhz: 462.725,
+        latitude: 39.8,
+        longitude: -89.65,
+        areaLabel: 'Test ridge',
+      },
+    });
+    expect(createRepeater.statusCode).toBe(201);
+    const repeaterId = createRepeater.json().id;
+
+    const rejected = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/circles/${circleId}/contacts`,
+      cookies: { rc_session: coordinator.sessionToken },
+      payload: {
+        stationId: coordinatorStationId,
+        counterpartyStationId: memberStationId,
+        occurredAt: new Date().toISOString(),
+        mode: 'simplex',
+        repeaterId,
+      },
+    });
+    expect(rejected.statusCode).toBe(400);
+
+    const accepted = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/circles/${circleId}/contacts`,
+      cookies: { rc_session: coordinator.sessionToken },
+      payload: {
+        stationId: coordinatorStationId,
+        counterpartyStationId: memberStationId,
+        occurredAt: new Date().toISOString(),
+        mode: 'repeater',
+        repeaterId,
+      },
+    });
+    expect(accepted.statusCode).toBe(201);
+    expect(accepted.json().repeaterId).toBe(repeaterId);
+    expect(accepted.json().repeaterName).toBe('Contact Test Repeater');
+
+    const connectivity = await analyzeCircleConnectivity(ctx.db, circleId);
+    const link = connectivity.links.find(
+      (item) =>
+        (item.fromStationId === coordinatorStationId && item.toStationId === memberStationId) ||
+        (item.fromStationId === memberStationId && item.toStationId === coordinatorStationId),
+    );
+    expect(link?.viaRepeaterName).toBe('Contact Test Repeater');
+  });
+
   it('lets the logger delete their own contact, but not other members', async () => {
     const createResponse = await ctx.app.inject({
       method: 'POST',

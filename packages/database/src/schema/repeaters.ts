@@ -1,4 +1,14 @@
-import { customType, doublePrecision, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  customType,
+  doublePrecision,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { users } from './identity.js';
 import { circles } from './circles.js';
 import { stations } from './stations.js';
@@ -80,5 +90,41 @@ export const stationRepeaters = pgTable(
       table.stationId,
       table.repeaterId,
     ),
+  }),
+);
+
+/**
+ * A logged station→repeater access check (heard / keyed the machine). May
+ * include an optional free-text note about who was heard. On create the API
+ * upserts `station_repeaters` so RF planning keeps using declared links.
+ * Deleting a check does not remove the declared link.
+ */
+export const repeaterChecks = pgTable(
+  'repeater_checks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    circleId: uuid('circle_id')
+      .notNull()
+      .references(() => circles.id, { onDelete: 'cascade' }),
+    stationId: uuid('station_id')
+      .notNull()
+      .references(() => stations.id, { onDelete: 'cascade' }),
+    repeaterId: uuid('repeater_id')
+      .notNull()
+      .references(() => repeaters.id, { onDelete: 'cascade' }),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    /** 'rx' | 'rx_tx' */
+    access: text('access').notNull(),
+    /** Optional note about who was heard (callsign or "unspecified"). */
+    counterpartyNote: text('counterparty_note'),
+    signalRating: integer('signal_rating'),
+    notes: text('notes'),
+    recordedByUserId: uuid('recorded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    circleIdx: index('repeater_checks_circle_idx').on(table.circleId),
+    stationIdx: index('repeater_checks_station_idx').on(table.stationId),
+    repeaterIdx: index('repeater_checks_repeater_idx').on(table.repeaterId),
   }),
 );

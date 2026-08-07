@@ -112,3 +112,6 @@ whole-state exports.
 - The in-memory RepeaterBook cache resets on process restart and is
   per-instance; acceptable at current scale, and the 5 s gate keeps even
   a cold fleet within RepeaterBook's usage expectations.
+- Location UX for manual adds, optional contact→repeater links, and
+  station→repeater access checks are in
+  [0018](0018-repeater-enrichment-and-checks.md).

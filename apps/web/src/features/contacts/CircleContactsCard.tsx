@@ -49,6 +49,7 @@ export function CircleContactsCard({ circleId }: { circleId: string }) {
                 <p className="text-xs text-ink/50">
                   {new Date(contact.occurredAt).toLocaleDateString()} &middot;{' '}
                   {CONNECTIVITY_PATH_TYPE_LABELS[contact.mode]}
+                  {contact.repeaterName ? ` · via ${contact.repeaterName}` : ''}
                 </p>
               </div>
               {contact.viewerCanDelete ? (

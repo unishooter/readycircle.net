@@ -3,6 +3,7 @@ import { users } from './identity.js';
 import { circles } from './circles.js';
 import { stations } from './stations.js';
 import { netSessions } from './nets.js';
+import { repeaters } from './repeaters.js';
 
 /**
  * A logged QSO: `stationId` declares that it successfully talked to
@@ -31,6 +32,8 @@ export const contacts = pgTable(
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
     /** 'simplex' | 'repeater' | 'satellite' | 'mesh' -- validated by contracts. */
     mode: text('mode').notNull(),
+    /** Optional directory machine when mode is 'repeater'. */
+    repeaterId: uuid('repeater_id').references(() => repeaters.id, { onDelete: 'set null' }),
     /** Human-usable dial setting, free text like `nets.channel`. */
     channel: text('channel'),
     /** Simple 1-5 signal-quality rating, self-reported. */
@@ -45,5 +48,6 @@ export const contacts = pgTable(
     circleIdx: index('contacts_circle_idx').on(table.circleId),
     stationIdx: index('contacts_station_idx').on(table.stationId),
     counterpartyIdx: index('contacts_counterparty_idx').on(table.counterpartyStationId),
+    repeaterIdx: index('contacts_repeater_idx').on(table.repeaterId),
   }),
 );

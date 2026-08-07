@@ -21,11 +21,21 @@ const importMock = vi.fn();
 
 vi.mock('./api.js', () => ({
   useCircleRepeaters: () => repeatersResult,
+  useCircleRepeaterChecks: () => ({ data: { items: [] }, isLoading: false }),
   useCreateRepeater: () => ({ mutateAsync: createMock, isPending: false, isError: false }),
   useUpdateRepeater: () => ({ mutateAsync: updateMock, isPending: false, isError: false }),
   useDeleteRepeater: () => ({ mutateAsync: deleteMock, isPending: false, isError: false }),
+  useDeleteRepeaterCheck: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false }),
   useRepeaterImportSearch: () => importSearchResult,
   useImportRepeaters: () => ({ mutateAsync: importMock, isPending: false, isError: false }),
+}));
+
+vi.mock('./RepeaterLocationFields.js', () => ({
+  RepeaterLocationFields: () => <div data-testid="repeater-location-fields" />,
+}));
+
+vi.mock('./LogRepeaterCheckForm.js', () => ({
+  LogRepeaterCheckForm: () => <div data-testid="log-repeater-check-form" />,
 }));
 
 function makeRepeater(overrides: Partial<RepeaterResponse> = {}): RepeaterResponse {
@@ -73,17 +83,21 @@ describe('CircleRepeatersCard', () => {
     expect(screen.getByText('Water Tower 725')).toBeInTheDocument();
     expect(screen.getByText(/462\.7250 MHz/)).toBeInTheDocument();
     expect(screen.getByText(/tone 141\.3/)).toBeInTheDocument();
+    expect(screen.getByText('No location')).toBeInTheDocument();
   });
 
-  it('lets a coordinator change status and remove an entry', async () => {
+  it('lets a manager edit status and remove an entry', async () => {
     const user = userEvent.setup();
+    updateMock.mockResolvedValue(makeRepeater({ status: 'offline' }));
     repeatersResult = { data: { items: [makeRepeater()] }, isLoading: false };
     renderCard(true);
 
-    await user.selectOptions(screen.getByLabelText(/status of water tower 725/i), 'offline');
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    await user.selectOptions(screen.getByLabelText(/^status$/i), 'offline');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
     expect(updateMock).toHaveBeenCalledWith({
       repeaterId: 'repeater-1',
-      input: { status: 'offline' },
+      input: expect.objectContaining({ status: 'offline' }),
     });
 
     await user.click(screen.getByRole('button', { name: /remove/i }));
@@ -94,6 +108,8 @@ describe('CircleRepeatersCard', () => {
     repeatersResult = { data: { items: [makeRepeater({ viewerCanManage: false })] }, isLoading: false };
     renderCard(false);
     expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /log check/i })).toBeInTheDocument();
   });
 
   it('submits a manual add with parsed frequency', async () => {
@@ -102,9 +118,9 @@ describe('CircleRepeatersCard', () => {
     renderCard();
 
     await user.click(screen.getByRole('button', { name: /add manually/i }));
-    await user.type(screen.getByLabelText(/name/i), 'Hilltop 675');
+    await user.type(screen.getByPlaceholderText(/marion county/i), 'Hilltop 675');
     await user.type(screen.getByLabelText(/output frequency/i), '462.675');
-    await user.type(screen.getByLabelText(/tone/i), '103.5');
+    await user.type(screen.getByPlaceholderText('e.g. 141.3'), '103.5');
     await user.click(screen.getByRole('button', { name: /add repeater/i }));
 
     expect(createMock).toHaveBeenCalledWith(

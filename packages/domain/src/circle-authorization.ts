@@ -25,6 +25,11 @@ export function canLogContact(viewerRole: CircleRole | null): boolean {
   return viewerRole !== null;
 }
 
+/** Same membership gate as contacts: active members may log repeater checks. */
+export function canLogRepeaterCheck(viewerRole: CircleRole | null): boolean {
+  return viewerRole !== null;
+}
+
 /**
  * Every circle must retain at least one active coordinator. Call this
  * before demoting or removing a coordinator, passing the count of *other*

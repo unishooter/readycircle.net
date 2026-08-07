@@ -77,7 +77,8 @@ export function StationRepeatersCard({ stationId }: StationRepeatersCardProps) {
       <CardTitle>Repeater access</CardTitle>
       <p className="mt-2 text-sm text-ink/60">
         Which repeaters can this station actually use? &quot;Hear + transmit&quot; means you can bring the
-        repeater up, not just receive it. This feeds the coverage analysis in generated plans.
+        repeater up, not just receive it. Logging a check from a Circle&apos;s Repeaters card also
+        updates these links. This feeds the coverage analysis in generated plans.
       </p>
       <ul className="mt-4 divide-y divide-black/5">
         {items.map((option) => (

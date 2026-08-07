@@ -19,6 +19,10 @@ vi.mock('../circles/api.js', () => ({
   useCircleMembers: () => membersResult,
 }));
 
+vi.mock('../repeaters/api.js', () => ({
+  useCircleRepeaters: () => ({ data: { items: [] }, isLoading: false }),
+}));
+
 vi.mock('./api.js', () => ({
   useLogContact: () => ({ mutateAsync: logContactMock, isPending: false, isError: false }),
 }));

@@ -12,4 +12,5 @@ export * from './repeater.js';
 export * from './invite.js';
 export * from './admin.js';
 export * from './contact.js';
+export * from './repeater-check.js';
 export * from './aprs.js';

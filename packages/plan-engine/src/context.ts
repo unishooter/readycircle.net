@@ -270,11 +270,14 @@ export async function analyzeCircleConnectivity(db: Database, circleId: string):
   const contactRows = stationIds.length
     ? await db.select().from(contacts).where(inArray(contacts.stationId, stationIds))
     : [];
+  const repeaterNameById = new Map(repeaterRows.map((row) => [row.id, row.name]));
   const rfConfirmedContacts: RfConfirmedContact[] = contactRows.map((row) => ({
     stationAId: row.stationId,
     stationBId: row.counterpartyStationId,
     mode: row.mode as RfConfirmedContact['mode'],
     occurredAt: row.occurredAt.toISOString(),
+    repeaterId: row.repeaterId,
+    repeaterName: row.repeaterId ? (repeaterNameById.get(row.repeaterId) ?? null) : null,
   }));
 
   return analyzeRfReachability({

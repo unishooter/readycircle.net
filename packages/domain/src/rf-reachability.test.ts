@@ -327,6 +327,35 @@ describe('confirmed contacts', () => {
     expect(link.viaRepeaterName).toBe('Green Mountain');
   });
 
+  it('prefers the named directory repeater on a confirmed repeater contact', () => {
+    const result = analyzeRfReachability({
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(40, { id: 'b', name: 'B' })],
+      repeaters: [
+        repeater({ id: 'r1', name: 'Green Mountain' }),
+        repeater({ id: 'r2', name: 'Water Tower' }),
+      ],
+      links: [
+        { stationId: 'a', repeaterId: 'r1', access: 'rx_tx' },
+        { stationId: 'b', repeaterId: 'r1', access: 'rx_tx' },
+        { stationId: 'a', repeaterId: 'r2', access: 'rx_tx' },
+        { stationId: 'b', repeaterId: 'r2', access: 'rx_tx' },
+      ],
+      confirmedContacts: [
+        {
+          stationAId: 'a',
+          stationBId: 'b',
+          mode: 'repeater',
+          occurredAt: '2026-07-01T12:00:00.000Z',
+          repeaterId: 'r2',
+          repeaterName: 'Water Tower',
+        },
+      ],
+    });
+    const link = linkBetween(result, 'a', 'b');
+    expect(link.viaRepeaterName).toBe('Water Tower');
+    expect(link.confirmed).toBe(true);
+  });
+
   it('uses the most recent contact when several exist for the same pair', () => {
     const result = analyzeRfReachability({
       stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(12, { id: 'b', name: 'B' })],

@@ -5,6 +5,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from '../../lib/errors
 import type { AuditService } from '../audit/service.js';
 import { getCircleById, getViewerRole } from '../circles/repository.js';
 import { getNetById, getSessionById, listActiveMemberStations } from '../nets/repository.js';
+import { getRepeaterById } from '../repeaters/repository.js';
 import {
   deleteContact,
   getContactById,
@@ -26,6 +27,8 @@ function mapResponse(row: ContactRow, viewerUserId: string): ContactResponse {
     counterpartyStationName: row.counterpartyStationName,
     occurredAt: row.occurredAt.toISOString(),
     mode: row.mode as ContactResponse['mode'],
+    repeaterId: row.repeaterId,
+    repeaterName: row.repeaterName,
     channel: row.channel,
     signalRating: row.signalRating,
     notes: row.notes,
@@ -87,12 +90,25 @@ export class ContactService {
       }
     }
 
+    let repeaterId: string | null = null;
+    if (input.repeaterId) {
+      if (input.mode !== 'repeater') {
+        throw new BadRequestError('repeaterId is only allowed when mode is "repeater".');
+      }
+      const repeater = await getRepeaterById(this.db, input.repeaterId);
+      if (!repeater || repeater.circleId !== circleId) {
+        throw new BadRequestError('That repeater is not in this Circle directory.');
+      }
+      repeaterId = repeater.id;
+    }
+
     const contactId = await insertContact(this.db, {
       circleId,
       stationId: input.stationId,
       counterpartyStationId: input.counterpartyStationId,
       occurredAt,
       mode: input.mode,
+      repeaterId,
       channel: input.channel ?? null,
       signalRating: input.signalRating ?? null,
       notes: input.notes ?? null,

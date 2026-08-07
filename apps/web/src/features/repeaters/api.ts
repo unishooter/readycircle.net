@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateRepeaterInput,
   ImportRepeatersInput,
+  LogRepeaterCheckInput,
+  RepeaterCheckResponse,
   RepeaterImportSearchResponse,
   RepeaterResponse,
   RepeaterService,
@@ -105,5 +107,38 @@ export function useSetStationRepeaters(stationId: string) {
     mutationFn: (input: SetStationRepeatersInput) =>
       api.put<{ items: StationRepeaterResponse[] }>(`/api/v1/stations/${stationId}/repeaters`, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stations', stationId, 'repeaters'] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Repeater checks
+// ---------------------------------------------------------------------------
+
+export function useCircleRepeaterChecks(circleId: string | undefined) {
+  return useQuery({
+    queryKey: ['circles', circleId, 'repeater-checks'],
+    queryFn: () => api.get<{ items: RepeaterCheckResponse[] }>(`/api/v1/circles/${circleId}/repeater-checks`),
+    enabled: Boolean(circleId),
+  });
+}
+
+export function useLogRepeaterCheck(circleId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: LogRepeaterCheckInput) =>
+      api.post<RepeaterCheckResponse>(`/api/v1/circles/${circleId}/repeater-checks`, input),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ['circles', circleId, 'repeater-checks'] });
+      void queryClient.invalidateQueries({ queryKey: ['stations', variables.stationId, 'repeaters'] });
+    },
+  });
+}
+
+export function useDeleteRepeaterCheck(circleId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (checkId: string) => api.delete<null>(`/api/v1/repeater-checks/${checkId}`),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['circles', circleId, 'repeater-checks'] }),
   });
 }

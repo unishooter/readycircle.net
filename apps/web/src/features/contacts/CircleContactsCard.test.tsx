@@ -30,6 +30,8 @@ function makeContact(overrides: Partial<ContactResponse> = {}): ContactResponse 
     counterpartyStationName: 'Neighbor Station',
     occurredAt: '2026-07-15T18:00:00.000Z',
     mode: 'simplex',
+    repeaterId: null,
+    repeaterName: null,
     channel: null,
     signalRating: null,
     notes: null,

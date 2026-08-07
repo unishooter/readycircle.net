@@ -99,3 +99,5 @@ together.
   snapshot (same as [0013](0013-invite-only-access-and-admin-panel.md)),
   since `drizzle-kit generate` requires an interactive TTY that isn't
   available in this environment.
+- Optional `contacts.repeater_id` and station→repeater access checks are
+  covered in [0018](0018-repeater-enrichment-and-checks.md).

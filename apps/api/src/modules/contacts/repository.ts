@@ -1,6 +1,6 @@
 import { desc, eq, inArray, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { circles, contacts, stations, users, type Database } from '@readycircle/database';
+import { circles, contacts, repeaters, stations, users, type Database } from '@readycircle/database';
 
 export interface ContactRow {
   id: string;
@@ -12,6 +12,8 @@ export interface ContactRow {
   counterpartyStationName: string;
   occurredAt: Date;
   mode: string;
+  repeaterId: string | null;
+  repeaterName: string | null;
   channel: string | null;
   signalRating: number | null;
   notes: string | null;
@@ -27,6 +29,7 @@ export interface InsertContactInput {
   counterpartyStationId: string;
   occurredAt: Date;
   mode: string;
+  repeaterId: string | null;
   channel: string | null;
   signalRating: number | null;
   notes: string | null;
@@ -43,12 +46,14 @@ function selectContactQuery(db: Database) {
       circleName: circles.name,
       stationName: stations.name,
       counterpartyStationName: counterpartyStation.name,
+      repeaterName: repeaters.name,
       recordedByDisplayName: users.displayName,
     })
     .from(contacts)
     .innerJoin(circles, eq(circles.id, contacts.circleId))
     .innerJoin(stations, eq(stations.id, contacts.stationId))
     .innerJoin(counterpartyStation, eq(counterpartyStation.id, contacts.counterpartyStationId))
+    .leftJoin(repeaters, eq(repeaters.id, contacts.repeaterId))
     .leftJoin(users, eq(users.id, contacts.recordedByUserId));
 }
 
@@ -57,6 +62,7 @@ function toRow(row: {
   circleName: string;
   stationName: string;
   counterpartyStationName: string;
+  repeaterName: string | null;
   recordedByDisplayName: string | null;
 }): ContactRow {
   return {
@@ -69,6 +75,8 @@ function toRow(row: {
     counterpartyStationName: row.counterpartyStationName,
     occurredAt: row.contact.occurredAt,
     mode: row.contact.mode,
+    repeaterId: row.contact.repeaterId,
+    repeaterName: row.repeaterName,
     channel: row.contact.channel,
     signalRating: row.contact.signalRating,
     notes: row.contact.notes,
@@ -88,6 +96,7 @@ export async function insertContact(db: Database, input: InsertContactInput): Pr
       counterpartyStationId: input.counterpartyStationId,
       occurredAt: input.occurredAt,
       mode: input.mode,
+      repeaterId: input.repeaterId,
       channel: input.channel,
       signalRating: input.signalRating,
       notes: input.notes,

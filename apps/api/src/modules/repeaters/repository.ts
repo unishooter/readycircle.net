@@ -194,6 +194,36 @@ export async function replaceLinksForStation(
   }
 }
 
+/**
+ * Upserts a single station↔repeater link, keeping the stronger access when
+ * one already exists (`rx_tx` wins over `rx`). Used by repeater checks.
+ */
+export async function upsertStationRepeaterAccess(
+  db: Database,
+  stationId: string,
+  repeaterId: string,
+  access: 'rx' | 'rx_tx',
+): Promise<void> {
+  const [existing] = await db
+    .select()
+    .from(stationRepeaters)
+    .where(and(eq(stationRepeaters.stationId, stationId), eq(stationRepeaters.repeaterId, repeaterId)))
+    .limit(1);
+
+  const nextAccess = existing?.access === 'rx_tx' || access === 'rx_tx' ? 'rx_tx' : 'rx';
+  if (existing) {
+    if (existing.access !== nextAccess) {
+      await db
+        .update(stationRepeaters)
+        .set({ access: nextAccess, updatedAt: new Date() })
+        .where(eq(stationRepeaters.id, existing.id));
+    }
+    return;
+  }
+
+  await db.insert(stationRepeaters).values({ stationId, repeaterId, access: nextAccess });
+}
+
 /** All Circle ids a station belongs to with an active membership. */
 export async function listActiveCircleIdsForStation(db: Database, stationId: string): Promise<string[]> {
   const rows = await db
