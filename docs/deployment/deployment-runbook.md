@@ -278,6 +278,29 @@ RDS-managed Secrets Manager secret (required once this build is live --
    once on `password authentication failed`, so rotation should not require
    a process restart.
 
+### Release-specific step: APRS live map (worker listener)
+
+The Circle live map only fills once the **worker** is logged into APRS-IS.
+These vars belong in `/etc/readycircle/worker.env` (harmless in `api.env`
+too, but only the worker starts the listener). See also
+[ADR 17](../decisions/0017-aprs-live-tracking.md) and the README env table.
+
+| Variable | Required? | Default | Purpose |
+| --- | --- | --- | --- |
+| `APRS_IS_CALLSIGN` | Yes, to enable | (empty = listener off) | Worker login identity to APRS-IS (your ham callsign). Not the stations being tracked. |
+| `APRS_IS_PASSCODE` | No | `-1` | Receive-only login; keep `-1` unless you have a validated passcode. |
+| `APRS_IS_HOST` | No | `rotate.aprs2.net` | APRS-IS tier-2 rotate pool. |
+| `APRS_IS_PORT` | No | `14580` | APRS-IS TCP port. |
+
+Station MYCALLs (who appears on the map) are set per station in the app,
+not via env. After setting `APRS_IS_CALLSIGN`, restart the worker and
+confirm logs show `aprs-is connected and logged in`:
+
+```bash
+sudo systemctl restart readycircle-worker
+sudo journalctl -u readycircle-worker -n 50 --no-pager | grep -i aprs
+```
+
 ### Release-specific step: AI plan generation (first deploy that includes it)
 
 The plan-generation feature added new required production configuration.
