@@ -278,6 +278,10 @@ export async function analyzeCircleConnectivity(db: Database, circleId: string):
     occurredAt: row.occurredAt.toISOString(),
     repeaterId: row.repeaterId,
     repeaterName: row.repeaterId ? (repeaterNameById.get(row.repeaterId) ?? null) : null,
+    stationALatitude: row.stationLatitude,
+    stationALongitude: row.stationLongitude,
+    stationBLatitude: row.counterpartyLatitude,
+    stationBLongitude: row.counterpartyLongitude,
   }));
 
   return analyzeRfReachability({

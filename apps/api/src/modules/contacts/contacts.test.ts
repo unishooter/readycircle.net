@@ -217,6 +217,34 @@ describe('contacts API', () => {
     expect(body.channel).toBe('GMRS ch 3');
     expect(body.signalRating).toBe(4);
     expect(body.viewerCanDelete).toBe(true);
+    // Defaults from each station's saved home location.
+    expect(body.stationLocation).toMatchObject(COORDINATOR_LOCATION);
+    expect(body.stationLocationOverridden).toBe(false);
+    expect(body.counterpartyLocation).toMatchObject(MEMBER_LOCATION);
+    expect(body.counterpartyLocationOverridden).toBe(false);
+  });
+
+  it('persists contact-time location overrides when provided', async () => {
+    const override = { latitude: 41.0, longitude: -90.0 };
+    const response = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/circles/${circleId}/contacts`,
+      cookies: { rc_session: member.sessionToken },
+      payload: {
+        stationId: memberStationId,
+        counterpartyStationId: coordinatorStationId,
+        occurredAt: '2026-07-02T12:00:00.000Z',
+        mode: 'simplex',
+        stationLocation: override,
+        stationLocationOverridden: true,
+        counterpartyLocation: { latitude: 41.1, longitude: -90.1 },
+        counterpartyLocationOverridden: true,
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().stationLocation).toMatchObject(override);
+    expect(response.json().stationLocationOverridden).toBe(true);
+    expect(response.json().counterpartyLocationOverridden).toBe(true);
   });
 
   it('lists contacts for the Circle, visible to any active member', async () => {

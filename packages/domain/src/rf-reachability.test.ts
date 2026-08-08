@@ -287,6 +287,31 @@ describe('confirmed contacts', () => {
     expect(link.detail).toBe('Confirmed by a logged contact on 2026-07-01');
   });
 
+  it('uses contact-time location snapshots for distance instead of current home coords', () => {
+    const result = analyzeRfReachability({
+      // Homes are 12 km apart, but the contact was logged at ~3 km.
+      stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(12, { id: 'b', name: 'B' })],
+      repeaters: [],
+      links: [],
+      confirmedContacts: [
+        {
+          stationAId: 'a',
+          stationBId: 'b',
+          mode: 'simplex',
+          occurredAt: '2026-07-01T12:00:00.000Z',
+          stationALatitude: 40,
+          stationALongitude: -105,
+          stationBLatitude: 40 + 3 / 111.195,
+          stationBLongitude: -105,
+        },
+      ],
+    });
+    const link = linkBetween(result, 'a', 'b');
+    expect(link.confirmed).toBe(true);
+    expect(link.distanceKm).toBe(3);
+    expect(link.detail).toMatch(/~3\.0 km at contact time/);
+  });
+
   it('is order-independent -- the pair matches regardless of which side is A/B', () => {
     const result = analyzeRfReachability({
       stations: [stationAt(0, { id: 'a', name: 'A' }), stationAt(12, { id: 'b', name: 'B' })],

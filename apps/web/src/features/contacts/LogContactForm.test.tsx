@@ -23,6 +23,23 @@ vi.mock('../repeaters/api.js', () => ({
   useCircleRepeaters: () => ({ data: { items: [] }, isLoading: false }),
 }));
 
+vi.mock('../stations/api.js', () => ({
+  useStations: () => ({
+    data: {
+      items: [
+        {
+          id: 'station-1',
+          location: { latitude: 39.78, longitude: -89.65, areaLabel: null, gridIdentifier: null, precision: 'precise_private' },
+        },
+      ],
+    },
+  }),
+}));
+
+vi.mock('../location/ContactTimeLocationField.js', () => ({
+  ContactTimeLocationField: ({ label }: { label: string }) => <div data-testid="location-field">{label}</div>,
+}));
+
 vi.mock('./api.js', () => ({
   useLogContact: () => ({ mutateAsync: logContactMock, isPending: false, isError: false }),
 }));
@@ -138,6 +155,8 @@ describe('LogContactForm', () => {
 
     await user.selectOptions(screen.getByLabelText(/your station/i), 'station-1');
     await user.selectOptions(screen.getByLabelText(/other station/i), 'station-2');
+    expect(screen.getByText(/where you were/i)).toBeInTheDocument();
+    expect(screen.getByText(/where they were/i)).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText(/mode/i), 'repeater');
     await user.type(screen.getByLabelText(/channel/i), 'GMRS ch 3');
     await user.selectOptions(screen.getByLabelText(/signal quality/i), '4');
@@ -150,6 +169,8 @@ describe('LogContactForm', () => {
     expect(input.mode).toBe('repeater');
     expect(input.channel).toBe('GMRS ch 3');
     expect(input.signalRating).toBe(4);
+    expect(input.stationLocation).toEqual({ latitude: 39.78, longitude: -89.65 });
+    expect(input.stationLocationOverridden).toBe(false);
     expect(onLogged).toHaveBeenCalled();
   });
 

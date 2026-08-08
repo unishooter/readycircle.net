@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, doublePrecision, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { users } from './identity.js';
 import { circles } from './circles.js';
 import { stations } from './stations.js';
@@ -41,6 +41,17 @@ export const contacts = pgTable(
     notes: text('notes'),
     /** Set when the contact happened during a specific net session. */
     netSessionId: uuid('net_session_id').references(() => netSessions.id, { onDelete: 'set null' }),
+    /**
+     * Snapshot of where each end was at contact time (defaults from
+     * station_locations; may be overridden on the log form). Used by RF/plan
+     * instead of current home when both ends are present.
+     */
+    stationLatitude: doublePrecision('station_latitude'),
+    stationLongitude: doublePrecision('station_longitude'),
+    stationLocationOverridden: boolean('station_location_overridden').notNull().default(false),
+    counterpartyLatitude: doublePrecision('counterparty_latitude'),
+    counterpartyLongitude: doublePrecision('counterparty_longitude'),
+    counterpartyLocationOverridden: boolean('counterparty_location_overridden').notNull().default(false),
     recordedByUserId: uuid('recorded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

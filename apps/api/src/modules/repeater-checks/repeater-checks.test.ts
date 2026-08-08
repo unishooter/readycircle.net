@@ -170,4 +170,42 @@ describe('repeater checks API', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().items.length).toBeGreaterThan(0);
   });
+
+  it('accepts a Circle station as who you heard and prefills the note when empty', async () => {
+    const response = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/circles/${circleId}/repeater-checks`,
+      cookies: { rc_session: member.sessionToken },
+      payload: {
+        stationId: memberStationId,
+        repeaterId,
+        occurredAt: new Date().toISOString(),
+        access: 'rx',
+        heardStationId: coordinatorStationId,
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().heardStationId).toBe(coordinatorStationId);
+    expect(response.json().heardStationName).toBe("Coordinator's Station");
+    expect(response.json().counterpartyNote).toBe("Coordinator's Station");
+  });
+
+  it('persists a station location override on a check', async () => {
+    const response = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/circles/${circleId}/repeater-checks`,
+      cookies: { rc_session: coordinator.sessionToken },
+      payload: {
+        stationId: coordinatorStationId,
+        repeaterId,
+        occurredAt: new Date().toISOString(),
+        access: 'rx',
+        stationLocation: { latitude: 40.5, longitude: -89.5 },
+        stationLocationOverridden: true,
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().stationLocation).toMatchObject({ latitude: 40.5, longitude: -89.5 });
+    expect(response.json().stationLocationOverridden).toBe(true);
+  });
 });

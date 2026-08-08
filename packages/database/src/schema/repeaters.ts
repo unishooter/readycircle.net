@@ -1,4 +1,5 @@
 import {
+  boolean,
   customType,
   doublePrecision,
   index,
@@ -117,8 +118,14 @@ export const repeaterChecks = pgTable(
     access: text('access').notNull(),
     /** Optional note about who was heard (callsign or "unspecified"). */
     counterpartyNote: text('counterparty_note'),
+    /** Optional Circle station selected as "who you heard" (free text remains in counterpartyNote). */
+    heardStationId: uuid('heard_station_id').references(() => stations.id, { onDelete: 'set null' }),
     signalRating: integer('signal_rating'),
     notes: text('notes'),
+    /** Snapshot of logging station location at check time. */
+    stationLatitude: doublePrecision('station_latitude'),
+    stationLongitude: doublePrecision('station_longitude'),
+    stationLocationOverridden: boolean('station_location_overridden').notNull().default(false),
     recordedByUserId: uuid('recorded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -126,5 +133,6 @@ export const repeaterChecks = pgTable(
     circleIdx: index('repeater_checks_circle_idx').on(table.circleId),
     stationIdx: index('repeater_checks_station_idx').on(table.stationId),
     repeaterIdx: index('repeater_checks_repeater_idx').on(table.repeaterId),
+    heardStationIdx: index('repeater_checks_heard_station_idx').on(table.heardStationId),
   }),
 );

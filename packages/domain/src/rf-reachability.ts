@@ -76,6 +76,11 @@ export interface RfConfirmedContact {
   /** Directory repeater named on a mode=repeater contact, when known. */
   repeaterId?: string | null;
   repeaterName?: string | null;
+  /** Contact-time location snapshots; when both ends are set, prefer over home coords. */
+  stationALatitude?: number | null;
+  stationALongitude?: number | null;
+  stationBLatitude?: number | null;
+  stationBLongitude?: number | null;
 }
 
 export interface RfAnalysisInput {
@@ -460,22 +465,42 @@ export function analyzeRfReachability(input: RfAnalysisInput): RfAnalysisResult 
       }
 
       const confirmedContact = confirmedByPair.get(pairKey(a.id, b.id));
+      // Prefer contact-time snapshots for distance when both ends were logged.
+      const contactHasSnapshots =
+        confirmedContact != null &&
+        confirmedContact.stationALatitude != null &&
+        confirmedContact.stationALongitude != null &&
+        confirmedContact.stationBLatitude != null &&
+        confirmedContact.stationBLongitude != null;
+      const pairDistance = contactHasSnapshots
+        ? haversineKm(
+            confirmedContact.stationALatitude as number,
+            confirmedContact.stationALongitude as number,
+            confirmedContact.stationBLatitude as number,
+            confirmedContact.stationBLongitude as number,
+          )
+        : distance;
+
       if (confirmedContact) {
         const namedRepeater =
           confirmedContact.mode === 'repeater'
             ? (confirmedContact.repeaterName ??
               (best?.pathType === 'repeater' ? best.viaRepeaterName : null))
             : null;
+        const distanceNote = contactHasSnapshots
+          ? ` (~${(pairDistance as number).toFixed(1)} km at contact time)`
+          : '';
         best = {
           pathType: confirmedContact.mode,
           verdict: 'likely',
           viaRepeaterName:
             namedRepeater ??
             (best?.pathType === confirmedContact.mode ? best.viaRepeaterName : null),
-          detail: `Confirmed by a logged contact on ${confirmedContact.occurredAt.slice(0, 10)}`,
+          detail: `Confirmed by a logged contact on ${confirmedContact.occurredAt.slice(0, 10)}${distanceNote}`,
         };
       }
 
+      const linkDistance = contactHasSnapshots ? pairDistance : distance;
       const link: ConnectivityLink = best
         ? {
             fromStationId: a.id,
@@ -484,7 +509,7 @@ export function analyzeRfReachability(input: RfAnalysisInput): RfAnalysisResult 
             toStationName: b.name,
             pathType: best.pathType,
             verdict: best.verdict,
-            distanceKm: distance === null ? null : roundKm(distance),
+            distanceKm: linkDistance === null ? null : roundKm(linkDistance),
             viaRepeaterName: best.viaRepeaterName,
             detail: best.detail,
             confirmed: Boolean(confirmedContact),

@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from 'react';
-import { CONNECTIVITY_PATH_TYPE_LABELS, type ContactMode, type LogContactInput } from '@readycircle/contracts';
+import { useMemo, useState, type FormEvent } from 'react';
+import { CONNECTIVITY_PATH_TYPE_LABELS, type ContactLocation, type ContactMode, type LogContactInput } from '@readycircle/contracts';
 import { Button, Field, Select, TextArea, TextInput } from '@readycircle/ui';
 import { useCircleMembers } from '../circles/api.js';
+import { ContactTimeLocationField } from '../location/ContactTimeLocationField.js';
 import { useCircleRepeaters } from '../repeaters/api.js';
 import { useSession } from '../session/api.js';
+import { useStations } from '../stations/api.js';
 import { useLogContact } from './api.js';
 
 export interface LogContactFormProps {
@@ -22,6 +24,15 @@ function nowLocalInputValue(): string {
   return offsetAdjusted.toISOString().slice(0, 16);
 }
 
+function coordsFromStation(station: {
+  location?: { latitude: number | null; longitude: number | null };
+} | null | undefined): ContactLocation | null {
+  const lat = station?.location?.latitude;
+  const lng = station?.location?.longitude;
+  if (lat == null || lng == null) return null;
+  return { latitude: lat, longitude: lng };
+}
+
 /**
  * Logging a contact is one-sided and self-declared: the acting user picks
  * one of their own stations in this Circle, plus any other active member
@@ -30,12 +41,17 @@ function nowLocalInputValue(): string {
 export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormProps) {
   const { data: session } = useSession();
   const { data: membersData } = useCircleMembers(circleId);
+  const { data: stationsData } = useStations();
   const { data: repeatersData } = useCircleRepeaters(circleId);
   const logContact = useLogContact(circleId);
 
   const members = membersData?.items ?? [];
   const myStations = members.filter((member) => member.userId === session?.user?.id);
   const repeaters = repeatersData?.items ?? [];
+  const ownedById = useMemo(
+    () => new Map((stationsData?.items ?? []).map((station) => [station.id, station])),
+    [stationsData?.items],
+  );
 
   const [stationId, setStationId] = useState('');
   const [counterpartyStationId, setCounterpartyStationId] = useState('');
@@ -45,13 +61,21 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
   const [channel, setChannel] = useState('');
   const [signalRating, setSignalRating] = useState('');
   const [notes, setNotes] = useState('');
+  const [stationLocation, setStationLocation] = useState<ContactLocation | null>(null);
+  const [stationLocationOverridden, setStationLocationOverridden] = useState(false);
+  const [counterpartyLocation, setCounterpartyLocation] = useState<ContactLocation | null>(null);
+  const [counterpartyLocationOverridden, setCounterpartyLocationOverridden] = useState(false);
 
   const counterpartyOptions = members.filter((member) => member.stationId !== stationId);
   const canSubmit = Boolean(stationId) && Boolean(counterpartyStationId) && Boolean(occurredAt);
 
+  const myDefault = coordsFromStation(ownedById.get(stationId));
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
+
+    const resolvedMine = stationLocationOverridden ? stationLocation : myDefault;
     const input: LogContactInput = {
       stationId,
       counterpartyStationId,
@@ -61,6 +85,17 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
       ...(channel.trim() ? { channel: channel.trim() } : {}),
       ...(signalRating ? { signalRating: Number(signalRating) } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(resolvedMine
+        ? { stationLocation: resolvedMine, stationLocationOverridden }
+        : stationLocationOverridden
+          ? { stationLocation: null, stationLocationOverridden: false }
+          : {}),
+      ...(counterpartyLocationOverridden
+        ? {
+            counterpartyLocation,
+            counterpartyLocationOverridden: counterpartyLocation != null,
+          }
+        : {}),
     };
     await logContact.mutateAsync(input);
     setStationId('');
@@ -71,6 +106,10 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
     setChannel('');
     setSignalRating('');
     setNotes('');
+    setStationLocation(null);
+    setStationLocationOverridden(false);
+    setCounterpartyLocation(null);
+    setCounterpartyLocationOverridden(false);
     onLogged?.();
   }
 
@@ -93,6 +132,8 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
               onChange={(event) => {
                 setStationId(event.target.value);
                 setCounterpartyStationId('');
+                setStationLocation(null);
+                setStationLocationOverridden(false);
               }}
             >
               <option value="">Choose…</option>
@@ -109,7 +150,11 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
             <Select
               id={id}
               value={counterpartyStationId}
-              onChange={(event) => setCounterpartyStationId(event.target.value)}
+              onChange={(event) => {
+                setCounterpartyStationId(event.target.value);
+                setCounterpartyLocation(null);
+                setCounterpartyLocationOverridden(false);
+              }}
               disabled={!stationId}
             >
               <option value="">Choose…</option>
@@ -189,6 +234,37 @@ export function LogContactForm({ circleId, onLogged, onCancel }: LogContactFormP
           )}
         </Field>
       </div>
+
+      {stationId ? (
+        <ContactTimeLocationField
+          label="Where you were (optional)"
+          hint="Defaults to your station's saved location. Adjust if you were mobile."
+          defaultLocation={myDefault}
+          defaultKnown={myDefault != null}
+          value={stationLocation}
+          overridden={stationLocationOverridden}
+          onChange={({ location, overridden }) => {
+            setStationLocation(location);
+            setStationLocationOverridden(overridden);
+          }}
+        />
+      ) : null}
+
+      {counterpartyStationId ? (
+        <ContactTimeLocationField
+          label="Where they were (optional)"
+          hint="Self-declared — where you believe the other station was. Defaults to their saved location on the server."
+          defaultLocation={null}
+          defaultKnown={false}
+          value={counterpartyLocation}
+          overridden={counterpartyLocationOverridden}
+          onChange={({ location, overridden }) => {
+            setCounterpartyLocation(location);
+            setCounterpartyLocationOverridden(overridden);
+          }}
+        />
+      ) : null}
+
       <Field label="Notes" hint="Optional">
         {(id) => (
           <TextArea id={id} value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} />

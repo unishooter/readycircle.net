@@ -1,13 +1,16 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import {
   REPEATER_ACCESS_LABELS,
+  type ContactLocation,
   type LogRepeaterCheckInput,
   type RepeaterAccess,
   type RepeaterResponse,
 } from '@readycircle/contracts';
 import { Button, Field, Select, TextArea, TextInput } from '@readycircle/ui';
 import { useCircleMembers } from '../circles/api.js';
+import { ContactTimeLocationField } from '../location/ContactTimeLocationField.js';
 import { useSession } from '../session/api.js';
+import { useStations } from '../stations/api.js';
 import { useLogRepeaterCheck } from './api.js';
 
 export interface LogRepeaterCheckFormProps {
@@ -24,6 +27,15 @@ function nowLocalInputValue(): string {
   return offsetAdjusted.toISOString().slice(0, 16);
 }
 
+function coordsFromStation(station: {
+  location?: { latitude: number | null; longitude: number | null };
+} | null | undefined): ContactLocation | null {
+  const lat = station?.location?.latitude;
+  const lng = station?.location?.longitude;
+  if (lat == null || lng == null) return null;
+  return { latitude: lat, longitude: lng };
+}
+
 export function LogRepeaterCheckForm({
   circleId,
   repeater,
@@ -32,30 +44,48 @@ export function LogRepeaterCheckForm({
 }: LogRepeaterCheckFormProps) {
   const { data: session } = useSession();
   const { data: membersData } = useCircleMembers(circleId);
+  const { data: stationsData } = useStations();
   const logCheck = useLogRepeaterCheck(circleId);
 
-  const myStations = (membersData?.items ?? []).filter((member) => member.userId === session?.user?.id);
+  const members = membersData?.items ?? [];
+  const myStations = members.filter((member) => member.userId === session?.user?.id);
+  const ownedById = useMemo(
+    () => new Map((stationsData?.items ?? []).map((station) => [station.id, station])),
+    [stationsData?.items],
+  );
 
   const [stationId, setStationId] = useState('');
   const [occurredAt, setOccurredAt] = useState(nowLocalInputValue());
   const [access, setAccess] = useState<RepeaterAccess>('rx_tx');
+  const [heardStationId, setHeardStationId] = useState('');
   const [counterpartyNote, setCounterpartyNote] = useState('');
   const [signalRating, setSignalRating] = useState('');
   const [notes, setNotes] = useState('');
+  const [stationLocation, setStationLocation] = useState<ContactLocation | null>(null);
+  const [stationLocationOverridden, setStationLocationOverridden] = useState(false);
 
   const canSubmit = Boolean(stationId) && Boolean(occurredAt);
+  const myDefault = coordsFromStation(ownedById.get(stationId));
+  const heardOptions = members.filter((member) => member.stationId !== stationId);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canSubmit) return;
+    const resolvedMine = stationLocationOverridden ? stationLocation : myDefault;
     const input: LogRepeaterCheckInput = {
       stationId,
       repeaterId: repeater.id,
       occurredAt: new Date(occurredAt).toISOString(),
       access,
+      ...(heardStationId ? { heardStationId } : {}),
       ...(counterpartyNote.trim() ? { counterpartyNote: counterpartyNote.trim() } : {}),
       ...(signalRating ? { signalRating: Number(signalRating) } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(resolvedMine
+        ? { stationLocation: resolvedMine, stationLocationOverridden }
+        : stationLocationOverridden
+          ? { stationLocation: null, stationLocationOverridden: false }
+          : {}),
     };
     await logCheck.mutateAsync(input);
     onLogged?.();
@@ -79,7 +109,16 @@ export function LogRepeaterCheckForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Your station" required>
           {(id) => (
-            <Select id={id} value={stationId} onChange={(event) => setStationId(event.target.value)}>
+            <Select
+              id={id}
+              value={stationId}
+              onChange={(event) => {
+                setStationId(event.target.value);
+                setHeardStationId('');
+                setStationLocation(null);
+                setStationLocationOverridden(false);
+              }}
+            >
               <option value="">Choose…</option>
               {myStations.map((member) => (
                 <option key={member.stationId} value={member.stationId}>
@@ -112,7 +151,32 @@ export function LogRepeaterCheckForm({
             />
           )}
         </Field>
-        <Field label="Who you heard" hint="Optional — callsign or leave blank">
+        <Field label="Who you heard (Circle station)" hint="Optional — pick a member station">
+          {(id) => (
+            <Select
+              id={id}
+              value={heardStationId}
+              onChange={(event) => {
+                const next = event.target.value;
+                setHeardStationId(next);
+                if (next) {
+                  const member = heardOptions.find((m) => m.stationId === next);
+                  if (member) setCounterpartyNote(member.stationName);
+                }
+              }}
+              disabled={!stationId}
+            >
+              <option value="">None / free text only</option>
+              {heardOptions.map((member) => (
+                <option key={member.stationId} value={member.stationId}>
+                  {member.stationName}
+                  {member.stationCallsign ? ` · ${member.stationCallsign}` : ''}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label="Who you heard (text)" hint="Optional — callsign or leave blank">
           {(id) => (
             <TextInput
               id={id}
@@ -136,6 +200,22 @@ export function LogRepeaterCheckForm({
           )}
         </Field>
       </div>
+
+      {stationId ? (
+        <ContactTimeLocationField
+          label="Where you were (optional)"
+          hint="Defaults to your station's saved location. Adjust if you were mobile."
+          defaultLocation={myDefault}
+          defaultKnown={myDefault != null}
+          value={stationLocation}
+          overridden={stationLocationOverridden}
+          onChange={({ location, overridden }) => {
+            setStationLocation(location);
+            setStationLocationOverridden(overridden);
+          }}
+        />
+      ) : null}
+
       <Field label="Notes" hint="Optional">
         {(id) => (
           <TextArea id={id} value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} />

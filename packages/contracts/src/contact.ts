@@ -13,6 +13,13 @@ import { connectivityPathTypeSchema } from './plan.js';
 export const contactModeSchema = connectivityPathTypeSchema;
 export type ContactMode = z.infer<typeof contactModeSchema>;
 
+/** Optional lat/lng snapshot at contact time (precise; used by RF/plan). */
+export const contactLocationSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+export type ContactLocation = z.infer<typeof contactLocationSchema>;
+
 export const logContactSchema = z
   .object({
     stationId: uuidSchema,
@@ -27,6 +34,16 @@ export const logContactSchema = z
     signalRating: z.number().int().min(1).max(5).optional(),
     notes: z.string().max(2000).optional(),
     netSessionId: uuidSchema.optional(),
+    /**
+     * Where your station was. Omit to use the station's current home location.
+     * Pass `null` to explicitly store no snapshot.
+     */
+    stationLocation: contactLocationSchema.nullable().optional(),
+    /** True when the logger adjusted the map away from the station default. */
+    stationLocationOverridden: z.boolean().optional(),
+    /** Where the other station was (self-declared). Same omit/`null` rules. */
+    counterpartyLocation: contactLocationSchema.nullable().optional(),
+    counterpartyLocationOverridden: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.repeaterId && value.mode !== 'repeater') {
@@ -55,6 +72,10 @@ export const contactResponseSchema = z.object({
   signalRating: z.number().int().nullable(),
   notes: z.string().nullable(),
   netSessionId: uuidSchema.nullable(),
+  stationLocation: contactLocationSchema.nullable(),
+  stationLocationOverridden: z.boolean(),
+  counterpartyLocation: contactLocationSchema.nullable(),
+  counterpartyLocationOverridden: z.boolean(),
   recordedByUserId: uuidSchema.nullable(),
   recordedByDisplayName: z.string().nullable(),
   /** Whether the viewer may delete this entry (i.e. they logged it). */

@@ -1,6 +1,6 @@
 import type { Database } from '@readycircle/database';
 import { canLogRepeaterCheck } from '@readycircle/domain';
-import type { LogRepeaterCheckInput, RepeaterCheckResponse } from '@readycircle/contracts';
+import type { ContactLocation, LogRepeaterCheckInput, RepeaterCheckResponse } from '@readycircle/contracts';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import type { AuditService } from '../audit/service.js';
 import { getCircleById, getViewerRole } from '../circles/repository.js';
@@ -9,10 +9,16 @@ import { getRepeaterById, upsertStationRepeaterAccess } from '../repeaters/repos
 import {
   deleteRepeaterCheck,
   getRepeaterCheckById,
+  getStationCoords,
   insertRepeaterCheck,
   listRepeaterChecksByCircle,
   type RepeaterCheckRow,
 } from './repository.js';
+
+function locationOrNull(lat: number | null, lng: number | null): ContactLocation | null {
+  if (lat == null || lng == null) return null;
+  return { latitude: lat, longitude: lng };
+}
 
 function mapResponse(
   row: RepeaterCheckRow,
@@ -29,12 +35,40 @@ function mapResponse(
     occurredAt: row.occurredAt.toISOString(),
     access: row.access as RepeaterCheckResponse['access'],
     counterpartyNote: row.counterpartyNote,
+    heardStationId: row.heardStationId,
+    heardStationName: row.heardStationName,
     signalRating: row.signalRating,
     notes: row.notes,
+    stationLocation: locationOrNull(row.stationLatitude, row.stationLongitude),
+    stationLocationOverridden: row.stationLocationOverridden,
     recordedByUserId: row.recordedByUserId,
     recordedByDisplayName: row.recordedByDisplayName,
     viewerCanDelete: row.recordedByUserId === viewerUserId || viewerIsCoordinator,
     createdAt: row.createdAt.toISOString(),
+  };
+}
+
+async function resolveStationSnapshot(
+  db: Database,
+  stationId: string,
+  provided: ContactLocation | null | undefined,
+  overriddenFlag: boolean | undefined,
+): Promise<{ latitude: number | null; longitude: number | null; overridden: boolean }> {
+  if (provided === null) {
+    return { latitude: null, longitude: null, overridden: false };
+  }
+  if (provided !== undefined) {
+    return {
+      latitude: provided.latitude,
+      longitude: provided.longitude,
+      overridden: overriddenFlag ?? true,
+    };
+  }
+  const home = await getStationCoords(db, stationId);
+  return {
+    latitude: home?.latitude ?? null,
+    longitude: home?.longitude ?? null,
+    overridden: false,
   };
 }
 
@@ -75,15 +109,42 @@ export class RepeaterCheckService {
       throw new BadRequestError('occurredAt cannot be in the future.');
     }
 
+    let heardStationId: string | null = null;
+    let counterpartyNote = input.counterpartyNote?.trim() || null;
+    if (input.heardStationId) {
+      const heard = members.find((member) => member.stationId === input.heardStationId);
+      if (!heard) {
+        throw new BadRequestError('That station is not an active member of this Circle.');
+      }
+      if (heard.stationId === input.stationId) {
+        throw new BadRequestError('Who you heard cannot be the same as your logging station.');
+      }
+      heardStationId = heard.stationId;
+      if (!counterpartyNote) {
+        counterpartyNote = heard.stationName;
+      }
+    }
+
+    const snap = await resolveStationSnapshot(
+      this.db,
+      input.stationId,
+      input.stationLocation,
+      input.stationLocationOverridden,
+    );
+
     const checkId = await insertRepeaterCheck(this.db, {
       circleId,
       stationId: input.stationId,
       repeaterId: input.repeaterId,
       occurredAt,
       access: input.access,
-      counterpartyNote: input.counterpartyNote ?? null,
+      counterpartyNote,
+      heardStationId,
       signalRating: input.signalRating ?? null,
       notes: input.notes ?? null,
+      stationLatitude: snap.latitude,
+      stationLongitude: snap.longitude,
+      stationLocationOverridden: snap.overridden,
       recordedByUserId: actingUserId,
     });
 

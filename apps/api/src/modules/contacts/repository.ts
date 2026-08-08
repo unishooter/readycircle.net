@@ -1,6 +1,6 @@
 import { desc, eq, inArray, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { circles, contacts, repeaters, stations, users, type Database } from '@readycircle/database';
+import { circles, contacts, repeaters, stationLocations, stations, users, type Database } from '@readycircle/database';
 
 export interface ContactRow {
   id: string;
@@ -18,6 +18,12 @@ export interface ContactRow {
   signalRating: number | null;
   notes: string | null;
   netSessionId: string | null;
+  stationLatitude: number | null;
+  stationLongitude: number | null;
+  stationLocationOverridden: boolean;
+  counterpartyLatitude: number | null;
+  counterpartyLongitude: number | null;
+  counterpartyLocationOverridden: boolean;
   recordedByUserId: string | null;
   recordedByDisplayName: string | null;
   createdAt: Date;
@@ -34,6 +40,12 @@ export interface InsertContactInput {
   signalRating: number | null;
   notes: string | null;
   netSessionId: string | null;
+  stationLatitude: number | null;
+  stationLongitude: number | null;
+  stationLocationOverridden: boolean;
+  counterpartyLatitude: number | null;
+  counterpartyLongitude: number | null;
+  counterpartyLocationOverridden: boolean;
   recordedByUserId: string;
 }
 
@@ -81,10 +93,29 @@ function toRow(row: {
     signalRating: row.contact.signalRating,
     notes: row.contact.notes,
     netSessionId: row.contact.netSessionId,
+    stationLatitude: row.contact.stationLatitude,
+    stationLongitude: row.contact.stationLongitude,
+    stationLocationOverridden: row.contact.stationLocationOverridden,
+    counterpartyLatitude: row.contact.counterpartyLatitude,
+    counterpartyLongitude: row.contact.counterpartyLongitude,
+    counterpartyLocationOverridden: row.contact.counterpartyLocationOverridden,
     recordedByUserId: row.contact.recordedByUserId,
     recordedByDisplayName: row.recordedByDisplayName,
     createdAt: row.contact.createdAt,
   };
+}
+
+export async function getStationCoords(
+  db: Database,
+  stationId: string,
+): Promise<{ latitude: number; longitude: number } | null> {
+  const [row] = await db
+    .select({ latitude: stationLocations.latitude, longitude: stationLocations.longitude })
+    .from(stationLocations)
+    .where(eq(stationLocations.stationId, stationId))
+    .limit(1);
+  if (!row || row.latitude == null || row.longitude == null) return null;
+  return { latitude: row.latitude, longitude: row.longitude };
 }
 
 export async function insertContact(db: Database, input: InsertContactInput): Promise<string> {
@@ -101,6 +132,12 @@ export async function insertContact(db: Database, input: InsertContactInput): Pr
       signalRating: input.signalRating,
       notes: input.notes,
       netSessionId: input.netSessionId,
+      stationLatitude: input.stationLatitude,
+      stationLongitude: input.stationLongitude,
+      stationLocationOverridden: input.stationLocationOverridden,
+      counterpartyLatitude: input.counterpartyLatitude,
+      counterpartyLongitude: input.counterpartyLongitude,
+      counterpartyLocationOverridden: input.counterpartyLocationOverridden,
       recordedByUserId: input.recordedByUserId,
     })
     .returning();

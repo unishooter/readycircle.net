@@ -1,6 +1,6 @@
 import type { Database } from '@readycircle/database';
 import { canLogContact } from '@readycircle/domain';
-import type { ContactResponse, LogContactInput } from '@readycircle/contracts';
+import type { ContactLocation, ContactResponse, LogContactInput } from '@readycircle/contracts';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import type { AuditService } from '../audit/service.js';
 import { getCircleById, getViewerRole } from '../circles/repository.js';
@@ -9,12 +9,18 @@ import { getRepeaterById } from '../repeaters/repository.js';
 import {
   deleteContact,
   getContactById,
+  getStationCoords,
   getStationIdsOwnedByUser,
   insertContact,
   listContactsByCircle,
   listContactsByStationIds,
   type ContactRow,
 } from './repository.js';
+
+function locationOrNull(lat: number | null, lng: number | null): ContactLocation | null {
+  if (lat == null || lng == null) return null;
+  return { latitude: lat, longitude: lng };
+}
 
 function mapResponse(row: ContactRow, viewerUserId: string): ContactResponse {
   return {
@@ -33,10 +39,42 @@ function mapResponse(row: ContactRow, viewerUserId: string): ContactResponse {
     signalRating: row.signalRating,
     notes: row.notes,
     netSessionId: row.netSessionId,
+    stationLocation: locationOrNull(row.stationLatitude, row.stationLongitude),
+    stationLocationOverridden: row.stationLocationOverridden,
+    counterpartyLocation: locationOrNull(row.counterpartyLatitude, row.counterpartyLongitude),
+    counterpartyLocationOverridden: row.counterpartyLocationOverridden,
     recordedByUserId: row.recordedByUserId,
     recordedByDisplayName: row.recordedByDisplayName,
     viewerCanDelete: row.recordedByUserId === viewerUserId,
     createdAt: row.createdAt.toISOString(),
+  };
+}
+
+/**
+ * Resolve a contact-time snapshot: explicit client value (including null) wins;
+ * when the field is omitted, fall back to the station's current home location.
+ */
+async function resolveSnapshot(
+  db: Database,
+  stationId: string,
+  provided: ContactLocation | null | undefined,
+  overriddenFlag: boolean | undefined,
+): Promise<{ latitude: number | null; longitude: number | null; overridden: boolean }> {
+  if (provided === null) {
+    return { latitude: null, longitude: null, overridden: false };
+  }
+  if (provided !== undefined) {
+    return {
+      latitude: provided.latitude,
+      longitude: provided.longitude,
+      overridden: overriddenFlag ?? false,
+    };
+  }
+  const home = await getStationCoords(db, stationId);
+  return {
+    latitude: home?.latitude ?? null,
+    longitude: home?.longitude ?? null,
+    overridden: false,
   };
 }
 
@@ -102,6 +140,19 @@ export class ContactService {
       repeaterId = repeater.id;
     }
 
+    const stationSnap = await resolveSnapshot(
+      this.db,
+      input.stationId,
+      input.stationLocation,
+      input.stationLocationOverridden,
+    );
+    const counterpartySnap = await resolveSnapshot(
+      this.db,
+      input.counterpartyStationId,
+      input.counterpartyLocation,
+      input.counterpartyLocationOverridden,
+    );
+
     const contactId = await insertContact(this.db, {
       circleId,
       stationId: input.stationId,
@@ -113,6 +164,12 @@ export class ContactService {
       signalRating: input.signalRating ?? null,
       notes: input.notes ?? null,
       netSessionId: input.netSessionId ?? null,
+      stationLatitude: stationSnap.latitude,
+      stationLongitude: stationSnap.longitude,
+      stationLocationOverridden: stationSnap.overridden,
+      counterpartyLatitude: counterpartySnap.latitude,
+      counterpartyLongitude: counterpartySnap.longitude,
+      counterpartyLocationOverridden: counterpartySnap.overridden,
       recordedByUserId: actingUserId,
     });
 
