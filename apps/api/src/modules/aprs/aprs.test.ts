@@ -33,7 +33,8 @@ describe('APRS live positions API', () => {
   let circleId: string;
 
   beforeAll(async () => {
-    ctx = await createTestContext();
+    // Login callsign required for the feature gate (enabled && callsign).
+    ctx = await createTestContext({ APRS_IS_CALLSIGN: 'W1AW', APRS_ENABLED: 'true' });
     coordinator = await loginAsNewDevUser(ctx.app, 'APRS Coordinator');
     member = await loginAsNewDevUser(ctx.app, 'APRS Member');
     outsider = await loginAsNewDevUser(ctx.app, 'APRS Outsider');

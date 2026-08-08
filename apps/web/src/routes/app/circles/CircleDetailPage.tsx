@@ -20,6 +20,7 @@ import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
 import { InviteCard } from '../../../features/invites/InviteCard.js';
 import { CircleContactsCard } from '../../../features/contacts/CircleContactsCard.js';
 import { CircleIdentifierBadge } from '../../../features/circles/CircleIdentifierBadge.js';
+import { useSession } from '../../../features/session/api.js';
 import { VersionStatusBadge } from '../plans/plan-status.js';
 import { formatOccurrence } from '../nets/format.js';
 
@@ -33,6 +34,7 @@ function formatSharedAddress(contact: MemberContact): string | null {
 export function CircleDetailPage() {
   const { circleId } = useParams<{ circleId: string }>();
   const navigate = useNavigate();
+  const { data: session } = useSession();
   const { data: circle, isLoading, error } = useCircle(circleId);
   const { data: membersData, isLoading: membersLoading } = useCircleMembers(circleId);
   const { data: stationsData } = useStations();
@@ -270,7 +272,7 @@ export function CircleDetailPage() {
         <CircleGearSummaryCard plans={plans} />
       </div>
 
-      <CircleLiveMap circleId={circle.id} />
+      {session?.aprsEnabled !== false ? <CircleLiveMap circleId={circle.id} /> : null}
 
       <CircleRepeatersCard circleId={circle.id} isCoordinator={isCoordinator} />
 

@@ -7,7 +7,7 @@ import { AprsPositionsService } from './service.js';
 const circleParamsSchema = z.object({ circleId: uuidSchema });
 
 export const aprsRoutes: FastifyPluginAsyncZod = async (app) => {
-  const service = new AprsPositionsService(app.db);
+  const service = new AprsPositionsService(app.db, app.config);
 
   app.get(
     '/circles/:circleId/aprs-positions',

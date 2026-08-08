@@ -89,6 +89,10 @@ vi.mock('../../../features/contacts/CircleContactsCard.js', () => ({
   CircleContactsCard: () => null,
 }));
 
+vi.mock('../../../features/session/api.js', () => ({
+  useSession: () => ({ data: { aprsEnabled: true } }),
+}));
+
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/app/circles/circle-1']}>

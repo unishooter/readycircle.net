@@ -56,6 +56,11 @@ const envSchema = z.object({
   // env value is only the fallback when no override is set.
   INVITE_ONLY_ACCESS: booleanFromString.default(false),
 
+  // Gates the APRS live map (and worker ingestion of matched positions).
+  // Independent of APRS_IS_CALLSIGN (which is still required for the worker
+  // to connect). An admin can override this at runtime via platform_settings.
+  APRS_ENABLED: booleanFromString.default(true),
+
   // OpenStreetMap Nominatim's usage policy requires requests to identify the
   // application with a contact address (https://operations.osmfoundation.org/policies/nominatim/).
   // Defaults to a generic ReadyCircle address so geocoding still works
@@ -134,6 +139,8 @@ export interface AppConfig {
   };
   /** Env-level default; the effective value may be overridden via platform_settings. */
   inviteOnlyAccess: boolean;
+  /** Env-level default for APRS live tracking; overridable via platform_settings. */
+  aprsEnabled: boolean;
   geocoding: {
     contactEmail: string;
   };
@@ -256,6 +263,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       unsafeOverrideUsed: isProduction && env.DEV_AUTH_UNSAFE_OVERRIDE,
     },
     inviteOnlyAccess: env.INVITE_ONLY_ACCESS,
+    aprsEnabled: env.APRS_ENABLED,
     geocoding: {
       contactEmail: env.GEOCODING_CONTACT_EMAIL,
     },

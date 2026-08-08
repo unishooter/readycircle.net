@@ -226,6 +226,9 @@ importers:
       '@readycircle/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@readycircle/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@readycircle/database':
         specifier: workspace:*
         version: link:../../packages/database

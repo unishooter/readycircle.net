@@ -1,11 +1,16 @@
+import type { AppConfig } from '@readycircle/config';
 import type { Database } from '@readycircle/database';
 import type { AprsPositionResponse } from '@readycircle/contracts';
 import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
+import { getAprsEnabled } from '../admin/effective-settings.js';
 import { getCircleById, getViewerRole } from '../circles/repository.js';
 import { listAprsPositionsForCircle } from './repository.js';
 
 export class AprsPositionsService {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly config: AppConfig,
+  ) {}
 
   /** Any active Circle member may view the live map -- same gate as repeaters/contacts. */
   async list(circleId: string, userId: string): Promise<AprsPositionResponse[]> {
@@ -13,6 +18,9 @@ export class AprsPositionsService {
     if (!circle) throw new NotFoundError('Circle not found.');
     const role = await getViewerRole(this.db, circleId, userId);
     if (!role) throw new ForbiddenError('You do not have access to this Circle.');
+
+    // Auth first, then feature gate -- disabled APRS yields an empty list, not a leak of membership.
+    if (!(await getAprsEnabled(this.db, this.config))) return [];
 
     const rows = await listAprsPositionsForCircle(this.db, circleId);
     return rows.map((row) => ({

@@ -55,6 +55,7 @@ export function useLogout() {
         devAuthEnabled: previous?.devAuthEnabled ?? true,
         cognitoEnabled: previous?.cognitoEnabled ?? false,
         inviteOnlyAccess: previous?.inviteOnlyAccess ?? false,
+        aprsEnabled: previous?.aprsEnabled ?? true,
       }));
       queryClient.invalidateQueries();
     },

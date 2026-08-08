@@ -1,10 +1,21 @@
 import type { AppConfig } from '@readycircle/config';
 import type { Database } from '@readycircle/database';
-import { canManageAdmins, resolveInviteOnlyAccess, wouldLeaveAppWithoutAdmin } from '@readycircle/domain';
-import type { AdminUserSummary, PlatformSettingsResponse, UpdatePlatformSettingsInput } from '@readycircle/contracts';
+import { canManageAdmins, resolveBooleanSetting, wouldLeaveAppWithoutAdmin } from '@readycircle/domain';
+import type {
+  AdminUserSummary,
+  AprsIsConfig,
+  PlatformSettingsResponse,
+  UpdatePlatformSettingsInput,
+} from '@readycircle/contracts';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import type { AuditService } from '../audit/service.js';
-import { getInviteOnlyAccessOverride, setInviteOnlyAccessOverride } from './effective-settings.js';
+import {
+  envAprsIsConfig,
+  getAprsIsConfigOverride,
+  getInviteOnlyAccessOverride,
+  setAprsIsConfigOverride,
+  setInviteOnlyAccessOverride,
+} from './effective-settings.js';
 import { countOtherAdmins, getAdminUserRow, listAllUsers, setUserIsAdmin, type AdminUserRow } from './repository.js';
 
 function mapUser(row: AdminUserRow): AdminUserSummary {
@@ -15,6 +26,14 @@ function mapUser(row: AdminUserRow): AdminUserSummary {
     isAdmin: row.isAdmin,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+function mapBooleanSetting(envDefault: boolean, override: boolean | null) {
+  return { envDefault, override, effective: resolveBooleanSetting(envDefault, override) };
+}
+
+function mapAprsSetting(envDefault: AprsIsConfig, override: AprsIsConfig | null) {
+  return { envDefault, override, effective: override ?? envDefault };
 }
 
 export class AdminService {
@@ -69,10 +88,14 @@ export class AdminService {
   }
 
   async getSettings(): Promise<PlatformSettingsResponse> {
-    const override = await getInviteOnlyAccessOverride(this.db);
-    const envDefault = this.config.inviteOnlyAccess;
+    const [inviteOverride, aprsOverride] = await Promise.all([
+      getInviteOnlyAccessOverride(this.db),
+      getAprsIsConfigOverride(this.db, this.config),
+    ]);
+    const aprsEnvDefault = envAprsIsConfig(this.config);
     return {
-      inviteOnlyAccess: { envDefault, override, effective: resolveInviteOnlyAccess(envDefault, override) },
+      inviteOnlyAccess: mapBooleanSetting(this.config.inviteOnlyAccess, inviteOverride),
+      aprs: mapAprsSetting(aprsEnvDefault, aprsOverride),
     };
   }
 
@@ -81,14 +104,34 @@ export class AdminService {
     actingUserId: string,
     requestId: string,
   ): Promise<PlatformSettingsResponse> {
-    await setInviteOnlyAccessOverride(this.db, input.inviteOnlyAccess, actingUserId);
+    if (input.inviteOnlyAccess !== undefined) {
+      await setInviteOnlyAccessOverride(this.db, input.inviteOnlyAccess, actingUserId);
+    }
+    if (input.aprs !== undefined) {
+      await setAprsIsConfigOverride(this.db, input.aprs, actingUserId);
+    }
     await this.audit.record({
       actorUserId: actingUserId,
       action: 'settings.updated',
       targetType: 'platform_settings',
       targetId: null,
       requestId,
-      metadata: { inviteOnlyAccess: input.inviteOnlyAccess },
+      metadata: {
+        ...(input.inviteOnlyAccess !== undefined ? { inviteOnlyAccess: input.inviteOnlyAccess } : {}),
+        ...(input.aprs !== undefined
+          ? {
+              aprs: input.aprs
+                ? {
+                    enabled: input.aprs.enabled,
+                    host: input.aprs.host,
+                    port: input.aprs.port,
+                    callsign: input.aprs.callsign,
+                    // Passcode is intentionally omitted from audit metadata.
+                  }
+                : null,
+            }
+          : {}),
+      },
     });
     return this.getSettings();
   }

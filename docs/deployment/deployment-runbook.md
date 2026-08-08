@@ -285,16 +285,21 @@ These vars belong in `/etc/readycircle/worker.env` (harmless in `api.env`
 too, but only the worker starts the listener). See also
 [ADR 17](../decisions/0017-aprs-live-tracking.md) and the README env table.
 
+These env vars are **defaults only**. Prefer configuring APRS-IS from the
+admin panel (APRS-IS settings card); the worker polls that override and
+reconnects without a restart.
+
 | Variable | Required? | Default | Purpose |
 | --- | --- | --- | --- |
-| `APRS_IS_CALLSIGN` | Yes, to enable | (empty = listener off) | Worker login identity to APRS-IS (your ham callsign). Not the stations being tracked. |
+| `APRS_IS_CALLSIGN` | To enable without admin override | (empty = listener off) | Default worker login identity to APRS-IS (your ham callsign). Not the stations being tracked. |
+| `APRS_ENABLED` | No | `true` | Default feature gate for Circle live maps + position ingestion. |
 | `APRS_IS_PASSCODE` | No | `-1` | Receive-only login; keep `-1` unless you have a validated passcode. |
 | `APRS_IS_HOST` | No | `rotate.aprs2.net` | APRS-IS tier-2 rotate pool. |
 | `APRS_IS_PORT` | No | `14580` | APRS-IS TCP port. |
 
 Station MYCALLs (who appears on the map) are set per station in the app,
-not via env. After setting `APRS_IS_CALLSIGN`, restart the worker and
-confirm logs show `aprs-is connected and logged in`:
+not via env. After setting a login callsign (admin panel or env), confirm
+worker logs show `aprs-is connected and logged in`:
 
 ```bash
 sudo systemctl restart readycircle-worker

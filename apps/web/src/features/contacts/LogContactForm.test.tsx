@@ -51,6 +51,7 @@ function makeSession(userId = 'user-1'): SessionResponse {
     devAuthEnabled: true,
     cognitoEnabled: false,
     inviteOnlyAccess: false,
+    aprsEnabled: true,
   };
 }
 

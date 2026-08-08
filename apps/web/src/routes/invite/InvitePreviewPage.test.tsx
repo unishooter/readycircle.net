@@ -43,6 +43,7 @@ function baseSession(overrides: Partial<SessionResponse> = {}): SessionResponse 
     devAuthEnabled: true,
     cognitoEnabled: false,
     inviteOnlyAccess: true,
+    aprsEnabled: true,
     ...overrides,
   };
 }

@@ -4,7 +4,7 @@ import { SESSION_COOKIE_NAME, DevAuthProvider } from '@readycircle/auth';
 import { devLoginRequestSchema, devUserSummarySchema, listResponseSchema, sessionResponseSchema } from '@readycircle/contracts';
 import { getCurrentUserById } from '../users/repository.js';
 import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
-import { getInviteOnlyAccess } from '../admin/effective-settings.js';
+import { getAprsEnabled, getInviteOnlyAccess } from '../admin/effective-settings.js';
 import { isCircleInviteTokenValid } from '../invites/service.js';
 
 /**
@@ -17,15 +17,18 @@ export const sessionRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get('/session', { schema: { tags: ['session'], response: { 200: sessionResponseSchema } } }, async (request) => {
     const devAuthEnabled = app.config.devAuth.enabled;
     const cognitoEnabled = app.config.cognito.isConfigured;
-    const inviteOnlyAccess = await getInviteOnlyAccess(app.db, app.config);
+    const [inviteOnlyAccess, aprsEnabled] = await Promise.all([
+      getInviteOnlyAccess(app.db, app.config),
+      getAprsEnabled(app.db, app.config),
+    ]);
     if (!request.userId) {
-      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled, inviteOnlyAccess };
+      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled, inviteOnlyAccess, aprsEnabled };
     }
     const user = await getCurrentUserById(app.db, request.userId);
     if (!user) {
-      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled, inviteOnlyAccess };
+      return { authenticated: false, user: null, devAuthEnabled, cognitoEnabled, inviteOnlyAccess, aprsEnabled };
     }
-    return { authenticated: true, user, devAuthEnabled, cognitoEnabled, inviteOnlyAccess };
+    return { authenticated: true, user, devAuthEnabled, cognitoEnabled, inviteOnlyAccess, aprsEnabled };
   });
 
   app.post('/logout', { schema: { tags: ['session'], response: { 200: z.object({ success: z.literal(true) }) } } }, async (request, reply) => {
@@ -74,8 +77,18 @@ export const sessionRoutes: FastifyPluginAsyncZod = async (app) => {
         });
         const user = await getCurrentUserById(app.db, userId);
         if (!user) throw new NotFoundError('Development user not found after login.');
-        const inviteOnlyAccess = await getInviteOnlyAccess(app.db, app.config);
-        return { authenticated: true, user, devAuthEnabled: true, cognitoEnabled: app.config.cognito.isConfigured, inviteOnlyAccess };
+        const [inviteOnlyAccess, aprsEnabled] = await Promise.all([
+          getInviteOnlyAccess(app.db, app.config),
+          getAprsEnabled(app.db, app.config),
+        ]);
+        return {
+          authenticated: true,
+          user,
+          devAuthEnabled: true,
+          cognitoEnabled: app.config.cognito.isConfigured,
+          inviteOnlyAccess,
+          aprsEnabled,
+        };
       },
     );
   }

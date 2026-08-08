@@ -10,8 +10,7 @@ import { JobHandlerRegistry } from './jobs/registry.js';
 import { createPlanGenerationHandler, PLAN_GENERATION_JOB_TYPE } from './jobs/handlers/plan-generation.js';
 import { createDocumentGenerationHandler, DOCUMENT_GENERATION_JOB_TYPE } from './jobs/handlers/document-generation.js';
 import { QueuePoller } from './queue-poller.js';
-import { AprsIsListener } from './aprs/aprs-is-listener.js';
-import { loadCallsignMap, upsertStationAprsPosition } from './aprs/repository.js';
+import { AprsIsSupervisor } from './aprs/aprs-supervisor.js';
 
 // See apps/api/src/index.ts for why this is safe in production too.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -93,22 +92,9 @@ async function main() {
   }
   const runnables: Runnable[] = [...pollers];
 
-  if (config.aprs.isConfigured) {
-    runnables.push(
-      new AprsIsListener({
-        host: config.aprs.host,
-        port: config.aprs.port,
-        loginCallsign: config.aprs.callsign,
-        passcode: config.aprs.passcode,
-        logger,
-        loadCallsignMap: () => loadCallsignMap(db),
-        onPosition: ({ stationId, position, rawLine }) =>
-          upsertStationAprsPosition(db, { stationId, position, rawLine, heardAt: position.timestamp ?? new Date() }),
-      }),
-    );
-  } else {
-    logger.warn('APRS_IS_CALLSIGN not configured, skipping APRS-IS listener (expected in local development)');
-  }
+  // Always run the supervisor: it polls admin/env APRS settings and
+  // starts/stops/reconnects the listener when config changes.
+  runnables.push(new AprsIsSupervisor({ db, config, logger }));
 
   process.on('uncaughtException', (error) => {
     logger.fatal({ err: error }, 'uncaught exception');
@@ -125,7 +111,7 @@ async function main() {
 
   const runPromises = runnables.map((runnable) => runnable.run());
   logger.info(
-    { appEnv: config.appEnv, activeQueues: pollers.length, aprsEnabled: config.aprs.isConfigured },
+    { appEnv: config.appEnv, activeQueues: pollers.length, aprsSupervisor: true },
     'ReadyCircle worker started',
   );
 

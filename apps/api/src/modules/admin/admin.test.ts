@@ -131,4 +131,64 @@ describe('admin API', () => {
       inviteOnlyAccess: { override: null, effective: clearResponse.json().inviteOnlyAccess.envDefault },
     });
   });
+
+  it('round-trips the APRS-IS config blob: set, read back, then clear', async () => {
+    const aprs = {
+      enabled: true,
+      host: 'custom.aprs2.net',
+      port: 14580,
+      callsign: 'KI5ABC',
+      passcode: '-1',
+    };
+    const setResponse = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/settings',
+      cookies: { rc_session: admin.sessionToken },
+      payload: { aprs },
+    });
+    expect(setResponse.statusCode).toBe(200);
+    expect(setResponse.json()).toMatchObject({ aprs: { override: aprs, effective: aprs } });
+
+    const getResponse = await ctx.app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/settings',
+      cookies: { rc_session: admin.sessionToken },
+    });
+    expect(getResponse.json()).toMatchObject({ aprs: { override: aprs, effective: aprs } });
+
+    const sessionResponse = await ctx.app.inject({
+      method: 'GET',
+      url: '/api/v1/session',
+      cookies: { rc_session: admin.sessionToken },
+    });
+    expect(sessionResponse.json()).toMatchObject({ aprsEnabled: true });
+
+    const clearResponse = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/settings',
+      cookies: { rc_session: admin.sessionToken },
+      payload: { aprs: null },
+    });
+    expect(clearResponse.json()).toMatchObject({
+      aprs: { override: null, effective: clearResponse.json().aprs.envDefault },
+    });
+  });
+
+  it('rejects an invalid APRS login callsign', async () => {
+    const response = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/settings',
+      cookies: { rc_session: admin.sessionToken },
+      payload: {
+        aprs: {
+          enabled: true,
+          host: 'rotate.aprs2.net',
+          port: 14580,
+          callsign: '!!bad!!',
+          passcode: '-1',
+        },
+      },
+    });
+    expect(response.statusCode).toBe(400);
+  });
 });

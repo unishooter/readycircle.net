@@ -15,6 +15,7 @@
     "@readycircle/aprs": "workspace:*",
     "@readycircle/aws": "workspace:*",
     "@readycircle/config": "workspace:*",
+    "@readycircle/contracts": "workspace:*",
     "@readycircle/database": "workspace:*",
     "@readycircle/observability": "workspace:*",
     "@readycircle/plan-engine": "workspace:*",

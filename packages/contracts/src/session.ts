@@ -10,6 +10,8 @@ export const sessionResponseSchema = z.object({
   cognitoEnabled: z.boolean(),
   /** Effective invite-only-access setting (env default, admin-overridable). Lets LoginPage explain why sign-up is blocked. */
   inviteOnlyAccess: z.boolean(),
+  /** Effective APRS live-tracking setting (env default, admin-overridable). Gates the Circle live map. */
+  aprsEnabled: z.boolean(),
 });
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 

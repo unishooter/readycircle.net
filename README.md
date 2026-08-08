@@ -158,7 +158,7 @@ notable ones:
 | `DOCUMENT_STORAGE_PATH` | Local directory for rendered plan PDFs when no S3 bucket is configured (default `.data/documents`). |
 | `REPEATERBOOK_APP_TOKEN` | Optional in all environments. Enables the "Find repeaters near this Circle" RepeaterBook import (see [ADR 12](docs/decisions/0012-repeaters-gear-check-scenarios.md)); without it the import UI reports "not configured" and manual repeater entry still works. |
 | `INVITE_ONLY_ACCESS` | Default `false`. When `true`, brand-new account creation is blocked without a valid Circle invite link; existing users can always sign back in. An admin can override this at runtime from `/app/admin` -- the override takes precedence over this env value. See [ADR 13](docs/decisions/0013-invite-only-access-and-admin-panel.md). |
-| `APRS_IS_HOST`, `APRS_IS_PORT`, `APRS_IS_CALLSIGN`, `APRS_IS_PASSCODE` | Optional in all environments. The worker's persistent APRS-IS listener for live station tracking only starts once `APRS_IS_CALLSIGN` is set; without it the map card shows an empty state. Defaults: `rotate.aprs2.net`, `14580`, `''`, `-1` (receive-only). See [ADR 17](docs/decisions/0017-aprs-live-tracking.md). |
+| `APRS_IS_HOST`, `APRS_IS_PORT`, `APRS_IS_CALLSIGN`, `APRS_IS_PASSCODE`, `APRS_ENABLED` | Optional env **defaults**. Runtime APRS-IS config is edited in the admin panel (`platform_settings`); the worker hot-reloads. Listener runs when enabled + login callsign are set. Defaults: `rotate.aprs2.net`, `14580`, `''`, `-1` (receive-only), `true`. See [ADR 17](docs/decisions/0017-aprs-live-tracking.md). |
 
 Configuration is loaded and validated exactly once, at process startup, by
 `packages/config`. Invalid or missing required values cause the process to

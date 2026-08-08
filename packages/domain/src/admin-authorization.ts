@@ -22,10 +22,15 @@ export function wouldLeaveAppWithoutAdmin(
 }
 
 /**
- * Pure resolution of the effective invite-only-access setting: an explicit
- * admin override always wins; otherwise fall back to the environment
- * default. `null` means "no override configured".
+ * Pure resolution of a platform boolean setting: an explicit admin override
+ * always wins; otherwise fall back to the environment default. `null` means
+ * "no override configured".
  */
-export function resolveInviteOnlyAccess(envDefault: boolean, override: boolean | null): boolean {
+export function resolveBooleanSetting(envDefault: boolean, override: boolean | null): boolean {
   return override ?? envDefault;
+}
+
+/** Invite-only access uses the same override/env resolution as other platform booleans. */
+export function resolveInviteOnlyAccess(envDefault: boolean, override: boolean | null): boolean {
+  return resolveBooleanSetting(envDefault, override);
 }

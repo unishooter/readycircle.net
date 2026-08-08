@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { canManageAdmins, resolveInviteOnlyAccess, wouldLeaveAppWithoutAdmin } from './admin-authorization.js';
+import {
+  canManageAdmins,
+  resolveBooleanSetting,
+  resolveInviteOnlyAccess,
+  wouldLeaveAppWithoutAdmin,
+} from './admin-authorization.js';
 
 describe('canManageAdmins', () => {
   it('only admins may manage other admins', () => {
