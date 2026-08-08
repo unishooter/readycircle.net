@@ -7,6 +7,7 @@ import {
   STATION_VISIBILITY_LABELS,
 } from '@readycircle/contracts';
 import { Button, Card, CheckboxOption, Stepper } from '@readycircle/ui';
+import { AprsCallsignLink } from '../../../features/aprs/AprsCallsignLink.js';
 import { useCreateStation } from '../../../features/stations/api.js';
 import { useAcceptInvite } from '../../../features/invites/api.js';
 import {
@@ -140,7 +141,9 @@ export function StationWizardPage() {
               {draft.callsign ? (
                 <div className="flex justify-between border-b border-black/5 pb-2">
                   <dt className="text-ink/60">APRS MYCALL</dt>
-                  <dd className="font-medium text-ink">{draft.callsign}</dd>
+                  <dd className="font-medium text-ink">
+                    <AprsCallsignLink callsign={draft.callsign} />
+                  </dd>
                 </div>
               ) : null}
               {isPlanned ? (

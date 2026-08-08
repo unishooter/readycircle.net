@@ -5,6 +5,7 @@ import type { AprsPositionResponse } from '@readycircle/contracts';
 import { Card, CardTitle } from '@readycircle/ui';
 import 'leaflet/dist/leaflet.css';
 import '../location/leaflet-icon-fix.js';
+import { AprsCallsignLink } from './AprsCallsignLink.js';
 import { useCircleAprsPositions } from './api.js';
 import { formatHeardAgo, isStale } from './format.js';
 
@@ -79,7 +80,9 @@ export function CircleLiveMap({ circleId }: CircleLiveMapProps) {
                 >
                   <Popup>
                     <p className="font-medium">{position.stationName}</p>
-                    <p>{position.callsign}</p>
+                    <p>
+                      <AprsCallsignLink callsign={position.callsign} />
+                    </p>
                     {position.comment ? <p>{position.comment}</p> : null}
                     <p className={stale ? 'text-ink/50' : undefined}>Heard {formatHeardAgo(position.heardAt)}</p>
                   </Popup>

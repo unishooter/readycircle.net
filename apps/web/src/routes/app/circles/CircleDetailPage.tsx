@@ -13,6 +13,7 @@ import { useStations } from '../../../features/stations/api.js';
 import { useCirclePlans, useGeneratePlan } from '../../../features/plans/api.js';
 import { useCircleNets } from '../../../features/nets/api.js';
 import { CircleRepeatersCard } from '../../../features/repeaters/CircleRepeatersCard.js';
+import { AprsCallsignLink } from '../../../features/aprs/AprsCallsignLink.js';
 import { CircleLiveMap } from '../../../features/aprs/CircleLiveMap.js';
 import { CircleGearSummaryCard } from '../../../features/plans/CircleGearSummaryCard.js';
 import { ScenarioPicker } from '../../../features/plans/ScenarioPicker.js';
@@ -306,7 +307,12 @@ export function CircleDetailPage() {
                       </div>
                       <p className="text-xs text-ink/50">
                         {member.stationName}
-                        {member.stationCallsign ? ` · ${member.stationCallsign}` : ''}
+                        {member.stationCallsign ? (
+                          <>
+                            {' · '}
+                            <AprsCallsignLink callsign={member.stationCallsign} />
+                          </>
+                        ) : null}
                         {' · '}Joined {new Date(member.joinedAt).toLocaleDateString()}
                       </p>
                     </div>

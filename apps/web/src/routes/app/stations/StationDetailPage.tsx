@@ -12,6 +12,7 @@ import {
 } from '@readycircle/contracts';
 import { Badge, Button, Card, CardTitle } from '@readycircle/ui';
 import { CONNECTIVITY_PATH_TYPE_LABELS } from '@readycircle/contracts';
+import { AprsCallsignLink } from '../../../features/aprs/AprsCallsignLink.js';
 import { useArchiveStation, useStation } from '../../../features/stations/api.js';
 import { useStationContacts } from '../../../features/contacts/api.js';
 
@@ -57,7 +58,12 @@ export function StationDetailPage() {
           </div>
           <p className="mt-1 text-sm text-ink/60">
             {STATION_TYPE_LABELS[station.stationType]}
-            {station.callsign ? <> &middot; {station.callsign}</> : null}
+            {station.callsign ? (
+              <>
+                {' · '}
+                <AprsCallsignLink callsign={station.callsign} />
+              </>
+            ) : null}
           </p>
         </div>
         {station.isOwner && station.status !== 'archived' ? (

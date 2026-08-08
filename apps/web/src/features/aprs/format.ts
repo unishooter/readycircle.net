@@ -1,6 +1,15 @@
 /** Positions heard longer ago than this render with a muted/stale marker style. */
 export const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
 
+/**
+ * aprs.fi track page for a station MYCALL (including SSID).
+ * Uses the `a/` "all SSIDs for this call" prefix with a 1-hour window/tail.
+ */
+export function aprsFiUrl(callsign: string): string {
+  const normalized = callsign.trim().toUpperCase();
+  return `https://aprs.fi/#!call=${encodeURIComponent(`a/${normalized}`)}&timerange=3600&tail=3600`;
+}
+
 export function isStale(heardAtIso: string, now: number = Date.now()): boolean {
   return now - new Date(heardAtIso).getTime() > STALE_THRESHOLD_MS;
 }

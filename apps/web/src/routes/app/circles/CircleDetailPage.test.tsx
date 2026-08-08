@@ -119,7 +119,13 @@ describe('CircleDetailPage members list', () => {
     };
     renderPage();
     expect(screen.getByText('Ana Rivera')).toBeInTheDocument();
-    expect(screen.getByText(/ana's home station · ki5abc-9 · joined/i)).toBeInTheDocument();
+    expect(screen.getByText(/ana's home station/i)).toBeInTheDocument();
+    const callsignLink = screen.getByRole('link', { name: 'KI5ABC-9' });
+    expect(callsignLink).toHaveAttribute(
+      'href',
+      'https://aprs.fi/#!call=a%2FKI5ABC-9&timerange=3600&tail=3600',
+    );
+    expect(callsignLink).toHaveAttribute('target', '_blank');
   });
 
   it('shows no contact-info toggle when nothing is shared', () => {

@@ -55,7 +55,11 @@ describe('CircleLiveMap', () => {
     await user.click(screen.getByRole('button', { name: /marker/i }));
 
     expect(screen.getByText("Ana's Home Station")).toBeInTheDocument();
-    expect(screen.getByText('KI5ABC-9')).toBeInTheDocument();
+    const callsignLink = screen.getByRole('link', { name: 'KI5ABC-9' });
+    expect(callsignLink).toHaveAttribute(
+      'href',
+      'https://aprs.fi/#!call=a%2FKI5ABC-9&timerange=3600&tail=3600',
+    );
     expect(screen.getByText('Mobile')).toBeInTheDocument();
     expect(screen.getByText(/heard just now/i)).toBeInTheDocument();
   });
