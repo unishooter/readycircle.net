@@ -305,7 +305,9 @@ export function CircleDetailPage() {
                         {member.stationStatus === 'hypothetical' ? <Badge tone="amber">Planned</Badge> : null}
                       </div>
                       <p className="text-xs text-ink/50">
-                        {member.stationName} &middot; Joined {new Date(member.joinedAt).toLocaleDateString()}
+                        {member.stationName}
+                        {member.stationCallsign ? ` · ${member.stationCallsign}` : ''}
+                        {' · '}Joined {new Date(member.joinedAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">

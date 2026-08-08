@@ -41,6 +41,7 @@ function mapMembership(detail: MembershipDetail): MembershipResponse {
     circleId: detail.circleId,
     stationId: detail.stationId,
     stationName: detail.stationName,
+    stationCallsign: detail.stationCallsign,
     stationStatus: detail.stationStatus,
     userId: detail.userId,
     memberDisplayName: detail.memberDisplayName,

@@ -13,6 +13,7 @@ export interface MembershipDetail {
   circleId: string;
   stationId: string;
   stationName: string;
+  stationCallsign: string | null;
   stationStatus: 'active' | 'hypothetical' | 'archived';
   userId: string;
   memberDisplayName: string;
@@ -36,6 +37,7 @@ export interface MembershipDetail {
 interface MembershipRow {
   membership: typeof circleMemberships.$inferSelect;
   stationName: string;
+  stationCallsign: string | null;
   stationStatus: string;
   memberDisplayName: string;
   email: string | null;
@@ -55,6 +57,7 @@ function membershipQuery(db: Database) {
     .select({
       membership: circleMemberships,
       stationName: stations.name,
+      stationCallsign: stations.callsign,
       stationStatus: stations.status,
       memberDisplayName: users.displayName,
       email: users.email,
@@ -79,6 +82,7 @@ function toMembershipDetail(row: MembershipRow, role: 'coordinator' | 'member'):
     circleId: row.membership.circleId,
     stationId: row.membership.stationId,
     stationName: row.stationName,
+    stationCallsign: row.stationCallsign,
     stationStatus: row.stationStatus as MembershipDetail['stationStatus'],
     userId: row.membership.userId,
     memberDisplayName: row.memberDisplayName,

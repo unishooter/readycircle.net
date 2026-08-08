@@ -60,6 +60,7 @@ function makeMember(overrides: Partial<MembershipResponse> = {}): MembershipResp
     circleId: CIRCLE_ID,
     stationId: 'station-1',
     stationName: 'My Station',
+    stationCallsign: null,
     stationStatus: 'active',
     userId: 'user-1',
     memberDisplayName: 'My Name',

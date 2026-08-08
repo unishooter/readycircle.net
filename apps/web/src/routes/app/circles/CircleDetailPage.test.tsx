@@ -31,6 +31,7 @@ function makeMember(overrides: Partial<MembershipResponse> = {}): MembershipResp
     circleId: 'circle-1',
     stationId: 'station-1',
     stationName: "Ana's Home Station",
+    stationCallsign: null,
     stationStatus: 'active',
     userId: 'user-1',
     memberDisplayName: 'Ana Rivera',
@@ -111,11 +112,14 @@ describe('CircleDetailPage members list', () => {
     expect(screen.queryByText(baseCircle.id)).not.toBeInTheDocument();
   });
 
-  it("shows the member's display name and station as secondary text", () => {
-    membersResult = { data: { items: [makeMember()] }, isLoading: false };
+  it("shows the member's display name, station, and APRS callsign as secondary text", () => {
+    membersResult = {
+      data: { items: [makeMember({ stationCallsign: 'KI5ABC-9' })] },
+      isLoading: false,
+    };
     renderPage();
     expect(screen.getByText('Ana Rivera')).toBeInTheDocument();
-    expect(screen.getByText(/ana's home station/i)).toBeInTheDocument();
+    expect(screen.getByText(/ana's home station · ki5abc-9 · joined/i)).toBeInTheDocument();
   });
 
   it('shows no contact-info toggle when nothing is shared', () => {

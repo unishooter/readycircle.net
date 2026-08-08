@@ -28,6 +28,8 @@ export const membershipResponseSchema = z.object({
   circleId: uuidSchema,
   stationId: uuidSchema,
   stationName: z.string(),
+  /** APRS MYCALL when configured on the station; null otherwise. */
+  stationCallsign: z.string().nullable(),
   /** Lets rosters flag planned (hypothetical) stations. */
   stationStatus: stationStatusSchema,
   userId: uuidSchema,
